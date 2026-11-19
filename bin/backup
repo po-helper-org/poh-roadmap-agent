@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Бэкап наработок в .zip, который открывается двойным щелчком на macOS (Утилита архивирования).
+
+Использование:
+  bin/backup <out.zip> [доп. папка ...] [--name <корневая папка в архиве>] [--max-mb 20]
+
+Что делает:
+- кладёт в архив этот репозиторий (с историей git) и перечисленные папки рядом с ним;
+- перед упаковкой сжимает историю (`git gc`) — без этого .git весит в десятки раз больше;
+- пропускает .claude/worktrees, __pycache__, ссылки (symlink);
+- имена с кириллицей пишет с признаком UTF-8 (иначе macOS: «Ошибка 94»);
+- сохраняет пустые папки (без них git не открывает репозиторий);
+- отказывается, если в именах есть : ? * " < > | \\ (macOS не распакует);
+- проверяет архив: целостность, распаковка во временную папку, git fsck, размер.
+  Архивы больше ~25 МБ при скачивании обрезаются — поэтому лимит по умолчанию 20 МБ.
+Только stdlib.
+"""
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BAD = re.compile(r'[:?*"<>|\\]')
+SKIP_DIRS = {'__pycache__', 'worktrees'}
+
+
+def walk(base, arc):
+    """(путь на диске, имя в архиве, это_пустая_папка) в детерминированном порядке."""
+    for root, dirs, files in os.walk(base):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS and not os.path.islink(os.path.join(root, d)))
+        rel = os.path.relpath(root, base)
+        a = arc if rel == '.' else arc + '/' + rel.replace(os.sep, '/')
+        files = sorted(f for f in files if not os.path.islink(os.path.join(root, f)))
+        if not dirs and not files:
+            yield root, a + '/', True
+        for f in files:
+            yield os.path.join(root, f), a + '/' + f, False
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('out')
+    ap.add_argument('extra', nargs='*', help='доп. папки (кладутся рядом с репозиторием)')
+    ap.add_argument('--name', default=None, help='корневая папка в архиве (по умолчанию — имя файла без .zip)')
+    ap.add_argument('--max-mb', type=float, default=20.0)
+    ap.add_argument('--no-gc', action='store_true')
+    a = ap.parse_args()
+
+    root = a.name or os.path.splitext(os.path.basename(a.out))[0]
+    if not a.no_gc and os.path.isdir(os.path.join(REPO, '.git')):
+        subprocess.run(['git', '-C', REPO, 'gc', '-q', '--prune=now'], check=True)
+
+    srcs = [(REPO, root + '/' + os.path.basename(REPO))]
+    for d in a.extra:
+        d = os.path.abspath(d)
+        if not os.path.isdir(d):
+            sys.exit(f'нет папки: {d}')
+        srcs.append((d, root + '/' + os.path.basename(d.rstrip('/'))))
+
+    entries = [e for base, arc in srcs for e in walk(base, arc)]
+    bad = [n for _, n, _ in entries if BAD.search(n.split('/', 1)[1])]
+    if bad:
+        sys.exit('имена с запрещёнными для macOS символами (переименуйте):\n  ' + '\n  '.join(bad[:20]))
+
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)) or '.', exist_ok=True)
+    tmp = a.out + '.part'
+    with zipfile.ZipFile(tmp, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+        for path, name, empty in entries:
+            if empty:
+                zi = zipfile.ZipInfo(name)
+                zi.external_attr = (0o40755 << 16) | 0x10
+                z.writestr(zi, b'')
+            else:
+                z.write(path, name)
+    os.replace(tmp, a.out)
+
+    # проверка
+    z = zipfile.ZipFile(a.out)
+    broken = z.testzip()
+    if broken:
+        sys.exit(f'архив повреждён: {broken}')
+    nonascii = [i for i in z.infolist() if not i.filename.isascii()]
+    if any(not (i.flag_bits & 0x800) for i in nonascii):
+        sys.exit('у кириллических имён нет признака UTF-8')
+    with tempfile.TemporaryDirectory() as t:
+        z.extractall(t)
+        repo_copy = os.path.join(t, root, os.path.basename(REPO))
+        if os.path.isdir(os.path.join(repo_copy, '.git')):
+            r = subprocess.run(['git', '-C', repo_copy, 'fsck', '--no-progress'], capture_output=True, text=True)
+            if r.returncode:
+                sys.exit('git fsck после распаковки: ' + r.stderr.strip())
+    size = os.path.getsize(a.out)
+    print(f'Архив: {a.out}')
+    print(f'Файлов: {len(z.infolist())}, кириллических имён: {len(nonascii)} (UTF-8), размер: {size / 1e6:.1f} МБ')
+    if size > a.max_mb * 1e6:
+        sys.exit(f'Размер больше {a.max_mb:g} МБ — при скачивании файл может обрезаться. Уберите лишнее из доп. папок.')
+    print('Проверено: целостность, распаковка, git fsck — OK')
+
+
+if __name__ == '__main__':
+    main()

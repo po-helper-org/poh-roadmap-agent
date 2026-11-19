@@ -1,0 +1,19 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Тесты инструмента
+        run: python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts -v
+      - name: Пример проходит проверки
+        run: |
+          bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01
+          bin/check-qlinks examples/school-migration/.okr/roadmap/goal-01
+          bin/roadmap build examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html
+      - name: Новая карта собирается
+        run: bin/roadmap init /tmp/new-goal --title "Проверка init" && bin/roadmap build /tmp/new-goal

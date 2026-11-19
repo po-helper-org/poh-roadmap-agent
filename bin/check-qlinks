@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+"""Проверка связи задач с реестром вопросов (конституция, статья III.5).
+
+Правило: каждый Q-NN, упомянутый в тексте задачи (backlog/*.md), есть в реестре
+questions.csv и стоит в «Влияет на» этой задачи или её предка (по полю parent).
+
+Использование: bin/check-qlinks <папка карты>
+Сборная карта цели (треки с «- папка: ../<slug>» в roadmap.md) проверяется по каждой папке стрима:
+у каждого стрима свой реестр.
+Выводит нарушения; код выхода 1, если они есть, иначе 0. Только stdlib.
+"""
+import csv
+import os
+import re
+import sys
+
+Q_RE = re.compile(r"\bQ-\d{2,}\b")
+
+
+def read_task(path):
+    """Возвращает (id, parent, полный текст) задачи."""
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    fields = {}
+    m = re.match(r"\A---\r?\n(.*?)\r?\n---\r?\n", text, re.S)
+    if m:
+        for line in m.group(1).splitlines():
+            k, sep, v = line.partition(":")
+            if sep and not line.startswith((" ", "\t")):
+                fields[k.strip()] = v.strip().strip('"').strip("'")
+    return fields.get("id"), fields.get("parent") or None, text
+
+
+def load_questions(path):
+    """Возвращает {Q-NN: множество id задач из «Влияет на»}."""
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.DictReader(f, delimiter=";"))
+    linked = {}
+    for row in rows:
+        ids = set()
+        for line in (row.get("Влияет на") or "").splitlines():
+            line = line.strip()
+            if line:
+                ids.add(line.split()[0])
+        linked[row["ID"].strip()] = ids
+    return linked
+
+
+def check(folder):
+    backlog = os.path.join(folder, "backlog")
+    tasks = {}
+    for name in sorted(os.listdir(backlog)):
+        if name.endswith(".md"):
+            tid, parent, text = read_task(os.path.join(backlog, name))
+            if tid:
+                tasks[tid] = (parent, text, name)
+    linked = load_questions(os.path.join(folder, "questions.csv"))
+
+    def chain(tid):
+        seen = []
+        while tid and tid not in seen:
+            seen.append(tid)
+            tid = tasks.get(tid, (None,))[0]
+        return seen
+
+    problems = []
+    for tid in sorted(tasks):
+        _, text, name = tasks[tid]
+        anc = chain(tid)
+        for q in sorted(set(Q_RE.findall(text))):
+            if q not in linked:
+                problems.append(f"{tid}: {q} — вопроса нет в реестре ({name})")
+            elif not linked[q] & set(anc):
+                problems.append(
+                    f"{tid}: {q} — не привязан ни к задаче, ни к предку "
+                    f"({' → '.join(anc)}); «Влияет на»: {', '.join(sorted(linked[q])) or 'пусто'}"
+                )
+    return problems
+
+
+def stream_dirs(folder):
+    """Папки стримов сборной карты: строки «- папка: <путь>» в разделах «## Трек N» её roadmap.md."""
+    path = os.path.join(folder, "roadmap.md")
+    if not os.path.isfile(path):
+        return []
+    out, in_track = [], False
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("## "):
+                in_track = bool(re.match(r"##\s+[Тт]рек\s+\d+", line))
+            m = re.match(r"\s*[-*]\s+папка\s*:\s*`?([^`\n]+?)`?\s*$", line)
+            if in_track and m:
+                out.append(os.path.normpath(os.path.join(folder, m.group(1))))
+    return out
+
+
+def main(argv):
+    if len(argv) < 2:
+        print("Использование: bin/check-qlinks <папка карты>", file=sys.stderr)
+        return 2
+    folder = argv[1]
+    streams = stream_dirs(folder)
+    if streams:
+        problems = [f"{d}: {p}" for d in streams for p in check(d)]
+        print(f"Сборная карта: проверено папок стримов {len(streams)} ({', '.join(streams)})", file=sys.stderr)
+    else:
+        problems = check(folder)
+    for p in problems:
+        print(p)
+    print(f"Нарушений: {len(problems)}", file=sys.stderr)
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

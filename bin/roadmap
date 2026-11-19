@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Обёртка: bin/roadmap <команда> <папка> [...] — команды в README.md, формат — .claude/skills/okr-roadmap-viz/resources/format.md
+TOOL="$(dirname "$0")/../.claude/skills/okr-roadmap-viz/scripts/roadmap.py"
+if [ ! -f "$TOOL" ]; then
+  echo "Нет инструмента $TOOL — скопируйте навык okr-roadmap-viz (см. README, раздел «Инструмент»)." >&2
+  exit 2
+fi
+exec python3 "$TOOL" "$@"

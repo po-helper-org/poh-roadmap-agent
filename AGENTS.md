@@ -1,0 +1,32 @@
+# poh-roadmap-agent — инструкции агенту (Codex и любой другой)
+
+Тот же свод, что в `CLAUDE.md`. Автозагрузки навыков нет: открой файлы сам.
+
+1. Есть `HANDOFF.md` — прочитай первым.
+2. Прочитай `.claude/skills/roadmap-methodology/SKILL.md` — этапы 0–10, сквозные правила, как определить текущий этап.
+3. Для текущего этапа прочитай его навык:
+   - 0 `.claude/skills/roadmap-00-sources/SKILL.md`
+   - 1 `.claude/skills/roadmap-01-goals/SKILL.md`
+   - 2 `.claude/skills/roadmap-02-path/SKILL.md`
+   - 3–4 `.claude/skills/roadmap-03-questions/SKILL.md` и `resources/questions-registry.md`
+   - 5 `.claude/skills/roadmap-05-completeness/SKILL.md`
+   - 6 `.claude/skills/roadmap-06-subtasks/SKILL.md`
+   - 7 `.claude/skills/roadmap-07-business-goals/SKILL.md`
+   - 8 `.claude/skills/roadmap-08-comments/SKILL.md`
+   - 9 `.claude/skills/roadmap-09-leadership-pack/SKILL.md`
+   - 10 `.claude/skills/roadmap-10-backup/SKILL.md`
+4. Пишешь md — сначала `.claude/skills/okr-roadmap-viz/resources/constitution.md` (обязательна) и `format.md`.
+
+## Правила
+
+- Только из источников (`sources/`, слова PO). Не выдумывай вопросы, даты, ответственных, критерии, критичность.
+  Пробел — сказать PO, а не заполнить.
+- Ответственных, сроки, критичность и исполнителей назначает только PO. Правки PO — дословно, реплики — в
+  `sources/po-messages.md`.
+- Пишешь только md, `questions.csv`, `journal.csv` (дописываешь). Страницу, граф, .xlsx и письмо строит `bin/roadmap`
+  (нужен только Python 3): `lint` → `check-qlinks` → `build` → коммит после каждого шага.
+- Правки PO со страницы приходят промптом «Скопировать промпт» или `PENDING.md` из архива «Экспортировать» — перенеси
+  как есть (этап 8).
+- Бэкап — только `bin/backup <out.zip> [доп. папки]`.
+- Эталон — `examples/school-migration/`; данные из него не копировать.
+- Реальные данные PO в публичный репозиторий не коммить.

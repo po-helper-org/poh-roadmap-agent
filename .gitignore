@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.DS_Store
+.okr/roadmap/*/roadmap.html
+.okr/roadmap/*/roadmap.json
+examples/*/.okr/roadmap/*/roadmap.html
+examples/*/.okr/roadmap/*/roadmap.json
