@@ -18,7 +18,8 @@
 | `*/questions.csv` | 3–5 | 20 вопросов: точечные, с ожидаемым ответом, источником, «Влияет на», историей; снятый Q-05 и объединённый Q-12 — пропуски нумерации; Q-15 — общий вопрос двух реестров |
 | `courses/journal.csv` | 8 | прогресс задачи и комментарий к вопросу; `corporate/journal.csv` — только заголовок |
 | `reports/Решения_PO_18.11.2026.md` | 5–7 | решения за PO: варианты и рекомендация агента |
-| `reports/Письмо_руководству_19.11.2026.txt` | 9 | письмо к .xlsx стрима «Курсы и ученики» — вид, который даёт `bin/roadmap letter … --track 1` |
+| `reports/Цель01_Курсы_и_ученики_Roadmap_19.11.2026.xlsx` | 9 | пакет руководству по стриму «Курсы и ученики»: Roadmap · ГАНТТ · Реестр вопросов · Беклог задач — вывод `bin/roadmap xlsx … --track 1 --date 2026-11-19` |
+| `reports/Письмо_руководству_19.11.2026.txt` | 9 | письмо к этому .xlsx — вывод `bin/roadmap letter … --track 1 --date 2026-11-19 --xlsx <имя .xlsx>` |
 
 ## Проверка
 
@@ -27,6 +28,8 @@ bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01      # «При�
 bin/check-qlinks examples/school-migration/.okr/roadmap/goal-01      # «Нарушений: 0»
 bin/roadmap build examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html
 bin/roadmap xlsx  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.xlsx --track 1 --date 2026-11-19
+bin/roadmap letter examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.txt --track 1 --date 2026-11-19 \
+  --xlsx Цель01_Курсы_и_ученики_Roadmap_19.11.2026.xlsx   # совпадает с reports/Письмо_руководству_19.11.2026.txt
 ```
 
 Ожидаемые предупреждения `lint`: «веха без даты» у `ts3` (форма ЦС без источников) и 8 «открытый вопрос без

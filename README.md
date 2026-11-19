@@ -50,7 +50,8 @@
 ## Пример результата
 
 [`examples/school-migration/`](examples/school-migration/) — вымышленная цель «Переезд онлайн-школы на платформу Б»:
-два стрима на одной сборной карте, 4 целевых состояния, 26 задач, 20 вопросов, журнал, решения PO и письмо руководству.
+два стрима на одной сборной карте, 4 целевых состояния, 26 задач, 20 вопросов, журнал, решения PO и пакет
+руководству (.xlsx и письмо).
 
 ```
 examples/school-migration/
@@ -58,13 +59,19 @@ examples/school-migration/
   .okr/roadmap/goal-01/roadmap.md                  сборная карта: Трек 1 → ../courses, Трек 2 → ../corporate
   .okr/roadmap/courses/                            ЦС1 (эталон: путь курса 1.1–1.4), ЦС2 (бизнес-цель), ЦС3 (веха)
   .okr/roadmap/corporate/                          стрим, выделенный из courses
-  reports/Решения_PO_18.11.2026.md, Письмо_руководству_19.11.2026.txt
+  reports/Решения_PO_18.11.2026.md                 решения за PO: варианты и рекомендация агента
+  reports/Цель01_…_Roadmap_19.11.2026.xlsx         пакет руководству (вывод bin/roadmap xlsx)
+  reports/Письмо_руководству_19.11.2026.txt        письмо к нему (вывод bin/roadmap letter)
 ```
 
 ```bash
-bin/roadmap build examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html    # откройте в браузере
-bin/roadmap xlsx  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.xlsx --date 2026-11-19
+bin/roadmap build  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html    # откройте в браузере
+bin/roadmap xlsx   examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.xlsx --track 1 --date 2026-11-19
+bin/roadmap letter examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.txt  --track 1 --date 2026-11-19
 ```
+
+Страницы и `roadmap.json` в git не кладутся (`.gitignore`): их пересобирает `bin/roadmap`. Пакет руководству в
+`reports/` примера — вывод тех же команд с `--xlsx Цель01_Курсы_и_ученики_Roadmap_19.11.2026.xlsx`.
 
 ## Устройство репозитория
 
@@ -76,6 +83,7 @@ CLAUDE.md, AGENTS.md            короткие инструкции агент
   okr-roadmap-viz/              инструмент: md → проверка → html, .xlsx, письмо
     resources/constitution.md   как оформлять цель, шаг, подзадачу, вопрос (эталон — пример)
     resources/format.md         формат roadmap.md, backlog/*.md, questions.csv, journal.csv
+    scripts/                    roadmap.py, xlsx_pack.py, шаблон страницы (assets/), тесты и фикстуры
 docs/methodology.md             методология для человека
 templates/                      шаблоны: паспорт, ЦС/шаг/подзадача, questions.csv, journal.csv, решения PO, письмо, HANDOFF, сценарии роя
 examples/school-migration/      сквозной пример
@@ -105,6 +113,7 @@ bin/roadmap, check-qlinks, backup
 
 ## Инструмент
 
-TODO: код навыка `okr-roadmap-viz` (`scripts/`, `SKILL.md`) скопировать из исходного репозитория после слияния версии
-с командами `xlsx` и `letter` — см. `.claude/skills/okr-roadmap-viz/scripts/README.md`. До этого `bin/roadmap`
-сообщает, что инструмента нет.
+`okr-roadmap-viz` — Python 3, только стандартная библиотека: `scripts/roadmap.py` (lint, build, tree, questions, report),
+`scripts/xlsx_pack.py` (пакет .xlsx и письмо), шаблон страницы `scripts/assets/`. Одинаковые md и csv — байт в байт
+одинаковые страница и .xlsx. Тесты — `python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts`
+(их же гоняет CI вместе с проверкой примера).
