@@ -128,3 +128,7 @@ bin/roadmap, check-qlinks, backup
 `scripts/xlsx_pack.py` (пакет .xlsx и письмо), шаблон страницы `scripts/assets/`. Одинаковые md и csv — байт в байт
 одинаковые страница и .xlsx. Тесты — `python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts`
 (их же гоняет CI вместе с проверкой примера).
+
+## Лицензия
+
+MIT — см. [LICENSE](LICENSE).
