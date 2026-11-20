@@ -234,6 +234,21 @@ class Build(Case):
         html = self.build(os.path.join(self.tmp, 'a.html'))
         self.assertNotIn('</script><b>', html)
 
+    def test_phone_layout(self):
+        """Телефон (≤ 640 px): вторичные колонки — строкой под названием, реестр — карточками, шкала не уезжает в прошлое."""
+        html = self.build(os.path.join(self.tmp, 'a.html'))
+        m = re.search(r'@media \(max-width: 640px\) \{(.*?)\n\}', html, re.S)
+        self.assertIsNotNone(m, 'нет медиазапроса узкого экрана')
+        phone = m.group(1)
+        self.assertIn('.tr6 > .cr { display: none; }', phone)                 # колонка «Роль» скрыта
+        self.assertIn('.tr6::after', phone)                                    # перенос «ответственный · готово · вопросы»
+        self.assertIn('.cv .qt thead { display: none; }', phone)              # реестр вопросов — карточки
+        self.assertIn('overflow-x: auto', phone)                               # верхняя панель прокручивается, не обрезается
+        self.assertIn('width: 100% !important', html)                          # сайдбар на всю ширину, ширина из перетаскивания не мешает
+        self.assertIn('function narrow()', html)                               # ширина левой колонки на телефоне
+        self.assertIn('edgeBounds', html)                                      # расширение шкалы ограничено
+        self.assertIn('if (view.t === \'cond\' || !userMoved) return;', html)  # до первого касания шкала стоит на «сегодня»
+
     def test_build_refuses_on_errors(self):
         self.edit(self.task('task-9'), 'role: FE', 'role: XX')
         code, out = quiet(roadmap.main, ['roadmap.py', 'build', self.dir])

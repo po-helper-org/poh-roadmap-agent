@@ -38,6 +38,8 @@
   var noteT = 0, noteItem = '', noteDirty = false, noteSrc = false, mn = null, mnOff = false, noteBoxEl = null, mnEl = null;
   var state = {}, customs = {}, open = {}, db = null, writeQ = {}, lo = -13, hi = 104, view = { t: 'ov' }, sel = null, adding = null, tab = 'plan', dl = null;
   var sc = document.getElementById('sc');
+  // сенсорный экран: шкалу расширяем только после остановки прокрутки (инерция iPhone не даёт сдвинуть scrollLeft)
+  var COARSE = false; try { COARSE = window.matchMedia('(hover: none), (pointer: coarse)').matches; } catch (e) {}
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   function p2(n) { return ('0' + n).slice(-2); }
@@ -219,7 +221,12 @@
 
   // ---------- range ----------
   function ensureRange() { STAT.forEach(function (it) { var sp = span(it); if (sp) { lo = Math.min(lo, sp[0] - 4); hi = Math.max(hi, sp[1] + 14); } }); items.forEach(function (it) { var sp = span(it); if (sp) { lo = Math.min(lo, sp[0] - 4); hi = Math.max(hi, sp[1] + 14); } }); }
-  function lw() { var n = window.innerWidth < 700; return view.t === 'ov' ? (n ? 200 : 320) : (n ? 260 : Math.min(880, Math.max(640, Math.round(window.innerWidth * 0.56)))); }
+  // телефон (≤ 640 px): левая колонка — половина экрана, остальное — шкала; вторичные колонки таблицы уходят строкой под название (template.html)
+  function narrow() { return window.innerWidth <= 640; }
+  function lw() {
+    if (narrow()) return Math.max(180, Math.round(window.innerWidth * 0.55));
+    var n = window.innerWidth < 700; return view.t === 'ov' ? (n ? 200 : 320) : (n ? 260 : Math.min(880, Math.max(640, Math.round(window.innerWidth * 0.56))));
+  }
   function wInfo(i) { var d = new Date(weekMon(i) + 6 * DAY), m = d.getUTCMonth(), y = d.getUTCFullYear(); return { m: y * 12 + m, q: y * 4 + Math.floor(m / 3) }; }
   function weekInQ(i) { var q = wInfo(i).q, j = i; while (wInfo(j - 1).q === q) j--; return i - j + 1; }
   function curTrack() { return TRACKS.filter(function (t) { return t.n === view.n; })[0] || TRACKS[0]; }
@@ -237,7 +244,9 @@
     if (view.t === 'ov') buildOverview(inn); else buildTrack(inn);
     var pad = el('div', 'row pad'); pad.appendChild(el('div', 'lc')); pad.appendChild(el('div', 'tc')); inn.appendChild(pad);
     sc.textContent = ''; sc.appendChild(inn);
-    sc.scrollLeft = sl + (shift || 0) * WPX; sc.scrollTop = st;
+    var tgt = sl + (shift || 0) * WPX; sc.scrollLeft = tgt; sc.scrollTop = st;
+    // на iPhone сдвиг шкалы во время инерционной прокрутки браузер может не применить — проверяем и ставим ещё раз
+    if (shift && COARSE) setTimeout(function () { if (sc.scrollLeft < tgt - shift * WPX / 2) sc.scrollLeft = tgt; }, 120);
     drawDeps(inn);
     markNotes(inn); renderBar();
     if (adding && adding.focus) { var ai = inn.querySelector('.addin'); if (ai) { adding.focus = false; ai.focus(); } }
@@ -634,7 +643,7 @@
         bar.style.left = (na - lo) * WPX + 2 + 'px'; bar.style.width = (nb - na + 1) * WPX - 4 + 'px';
       }
       function up() {
-        bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up);
+        bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', cancel);
         if (!moved) { openDrawer(it.id); return; }
         if (!dk) { render(); return; }
         var n = cur(it), s = e.s, en = e.e;
@@ -643,7 +652,9 @@
         else { en = iso(weekMon(Math.max(b0 + dk, a0)) + 4 * DAY); }
         n.s = s; n.e = en; commit(it, n);
       }
-      bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+      // прокрутка пальцем, начатая на полосе, — не клик: браузер забирает жест (pointercancel), карточку не открываем
+      function cancel() { bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', cancel); if (moved) render(); }
+      bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', cancel);
     });
     return bar;
   }
@@ -657,12 +668,13 @@
       var x0 = ev.clientX, moved = false, dk = 0; m.setPointerCapture(ev.pointerId);
       function mv(q) { if (Math.abs(q.clientX - x0) > 4) moved = true; if (!moved) return; dk = Math.round((q.clientX - x0) / WPX); m.style.left = left0 + dk * WPX + 'px'; }
       function up() {
-        m.removeEventListener('pointermove', mv); m.removeEventListener('pointerup', up); m.removeEventListener('pointercancel', up);
+        m.removeEventListener('pointermove', mv); m.removeEventListener('pointerup', up); m.removeEventListener('pointercancel', cancel);
         if (!moved) { openDrawer(it.id); return; }
         if (!dk) { render(); return; }
         var n = cur(it); n.s = iso(ms(e.s) + 7 * dk * DAY); n.e = ''; commit(it, n);
       }
-      m.addEventListener('pointermove', mv); m.addEventListener('pointerup', up); m.addEventListener('pointercancel', up);
+      function cancel() { m.removeEventListener('pointermove', mv); m.removeEventListener('pointerup', up); m.removeEventListener('pointercancel', cancel); if (moved) render(); }
+      m.addEventListener('pointermove', mv); m.addEventListener('pointerup', up); m.addEventListener('pointercancel', cancel);
     });
     return m;
   }
@@ -1767,7 +1779,7 @@
   }
   function renderPanel() {
     var list = document.getElementById('cpList'); list.textContent = '';
-    if (!notes.length) list.appendChild(el('div', 'cp-empty', 'Комментариев нет. Правый клик по любому элементу карты или режим «Комментировать».'));
+    if (!notes.length) list.appendChild(el('div', 'cp-empty', 'Комментариев нет. ' + (COARSE ? 'Включите «Комментировать» и нажмите на элемент карты.' : 'Правый клик по любому элементу карты или режим «Комментировать».')));
     notes.forEach(function (c, i) {
       var li = el('div', 'cp-item'), hd = el('button', 'cp-lbl'); hd.type = 'button';
       hd.appendChild(el('b', '', (i + 1) + '.')); hd.appendChild(document.createTextNode(' ' + c.label + (c.week ? ' · неделя с ' + fmt(c.week) : '')));
@@ -1810,7 +1822,7 @@
   cpAdd.addEventListener('click', addNote);
   document.getElementById('cpCancel').addEventListener('click', closePop);
   cpText.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); addNote(); } else if (ev.key === 'Escape') { ev.stopPropagation(); closePop(); } });
-  cbMode.addEventListener('click', function () { cmode = !cmode; closePop(); renderBar(); if (cmode) toast('Кликните по элементу карты — Esc выключает режим', 2200); });
+  cbMode.addEventListener('click', function () { cmode = !cmode; closePop(); renderBar(); if (cmode) toast(COARSE ? 'Нажмите на элемент карты — повторное нажатие «Комментировать» выключает режим' : 'Кликните по элементу карты — Esc выключает режим', 2600); });
   cbList.addEventListener('click', function () { cpanel.hidden = !cpanel.hidden; cbList.setAttribute('aria-expanded', String(!cpanel.hidden)); if (!cpanel.hidden) renderPanel(); });
   cbCopy.addEventListener('click', function () {
     var n = notes.length, ed = pageEdits().length;
@@ -1869,7 +1881,8 @@
     var a = el('a', 'condlink'), k = n ? condKeyOfTrack(n) : null; a.href = '#conditions' + (k ? '/' + encodeURIComponent(k) : '');
     var risk = CONDS.filter(function (c) { var s = condEval(c).state; return s === 'risk' || s === 'broken'; }).length;
     if (!CONDS.length && QS.length) { a.href = '#conditions'; risk = QS.filter(function (q) { return !q.a; }).length; }
-    a.appendChild(document.createTextNode(!CONDS.length && QS.length ? 'Реестр вопросов' : 'Реестр условий'));
+    // на телефоне — коротко («Вопросы»/«Условия»): полное название не помещается в левую колонку
+    var qmode = !CONDS.length && QS.length; a.appendChild(el('span', 'cl-l', qmode ? 'Реестр вопросов' : 'Реестр условий')); a.appendChild(el('span', 'cl-s', qmode ? 'Вопросы' : 'Условия'));
     if (risk) { var b = el('b', 'cn-risk', String(risk)); b.title = !CONDS.length && QS.length ? 'Открытых вопросов' : 'Условий в зоне риска или сорвано'; a.appendChild(b); }
     a.addEventListener('click', function (ev) { ev.stopPropagation(); });
     return a;
@@ -2014,6 +2027,8 @@
     fillCm(); show();
     qdr.appendChild(b); qdr.appendChild(nav); qdr.classList.add('open'); document.body.classList.add('qopen');
   }
+  // подпись поля для карточки вопроса на телефоне (таблица там раскладывается в карточки, заголовков колонок нет)
+  function lbl(td, l) { td.dataset.l = l; return td; }
   function stBadge(st) { return el('span', 'qst q' + Math.max(0, QST.indexOf(st)), st); }
   var qtab = null;
   function renderQPage(keep) {
@@ -2076,7 +2091,7 @@
           var qc = el('td', 'qq'); qc.appendChild(document.createTextNode(q.q));
           if (q.cr) qc.appendChild(el('b', 'qcrit', ' · критичный'));
           var sc2 = el('td', 'qstc'); sc2.appendChild(stBadge(q.sts));
-          tr.appendChild(el('td', 'qid', q.id)); tr.appendChild(qc); tr.appendChild(sc2); tr.appendChild(el('td', q.a ? 'qans' : 'qnone', q.a || '')); tr.appendChild(el('td', '', q.who || '')); tr.appendChild(el('td', 'qnote', q.note || ''));
+          tr.appendChild(el('td', 'qid', q.id)); tr.appendChild(qc); tr.appendChild(sc2); tr.appendChild(lbl(el('td', q.a ? 'qans' : 'qnone', q.a || ''), 'Ответ')); tr.appendChild(lbl(el('td', 'qwho', q.who || ''), 'Ответственный')); tr.appendChild(lbl(el('td', 'qnote', q.note || ''), 'Комментарий'));
           bd.appendChild(tr);
         });
       });
@@ -2264,21 +2279,43 @@
     if (was === 'cond' && view.t !== 'cond') toToday(false); else if (view.t !== 'cond') sc.scrollLeft = sl;
     if (pendingGo && view.t === 'tr') { var g0 = pendingGo; pendingGo = null; setTimeout(function () { gotoItem(g0); openDrawer(g0, 'plan'); }, 30); }
   }
-  function toToday(smooth) { sc.scrollTo({ left: Math.max(0, (todayIdx - lo) * WPX - 120), behavior: smooth ? 'smooth' : 'auto' }); }
+  // «сегодня» — на трети видимой шкалы, но не дальше 120 px от левой колонки (как на десктопе)
+  function toToday(smooth) {
+    var off = Math.min(120, Math.max(16, Math.round((sc.clientWidth - lw()) / 3)));
+    sc.scrollTo({ left: Math.max(0, (todayIdx - lo) * WPX - off), behavior: smooth ? 'smooth' : 'auto' });
+  }
   document.getElementById('fab').addEventListener('click', function () { toToday(true); });
-  var ticking = false;
+  // Бесконечная шкала. Пока человек сам не тронул страницу, шкала стоит на «сегодня»: в приложении на iPhone окно
+  // при открытии меняет размер, и прежний сдвиг (scrollLeft = 0 → «расширить влево» по кругу) уносил шкалу на годы назад.
+  // Расширение — только после действия человека и не дальше года до первой даты и двух лет после последней.
+  var userMoved = false, ticking = false, edgeT = 0;
+  ['touchstart', 'wheel', 'pointerdown', 'keydown'].forEach(function (t) { sc.addEventListener(t, function () { userMoved = true; }, { passive: true }); });
+  function edgeBounds() {
+    var a = todayIdx, b = todayIdx;
+    items.concat(STAT).forEach(function (it) { var sp = span(it); if (sp) { a = Math.min(a, sp[0]); b = Math.max(b, sp[1]); } });
+    return [a - 52, b + 104];
+  }
+  function edge() {
+    if (view.t === 'cond' || !userMoved) return;
+    var sl = sc.scrollLeft, room = sc.scrollWidth - sc.clientWidth - sl, bd = edgeBounds();
+    if (sl < 300 && lo > bd[0]) { var k = Math.min(26, lo - bd[0]); lo -= k; render(k); }
+    else if (room < 400 && hi < bd[1]) { hi += 26; render(); }
+  }
   sc.addEventListener('scroll', function () {
-    if (ticking || view.t === 'cond') return; ticking = true;
-    requestAnimationFrame(function () {
-      ticking = false; var sl = sc.scrollLeft, room = sc.scrollWidth - sc.clientWidth - sl;
-      if (sl < 300) { lo -= 26; render(26); } else if (room < 400) { hi += 26; render(); }
-    });
+    if (view.t === 'cond') return;
+    if (COARSE) { clearTimeout(edgeT); edgeT = setTimeout(edge, 160); return; }
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () { ticking = false; edge(); });
   });
+  function settle() { if (!userMoved && view.t !== 'cond') toToday(false); }
   window.addEventListener('hashchange', route);
-  window.addEventListener('resize', function () { render(); });
+  window.addEventListener('resize', function () { render(); settle(); });
+  window.addEventListener('load', settle);
+  window.addEventListener('pageshow', settle);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) settle(); });
   var HAS_RT = !!(window.claude && typeof window.claude.use === 'function');
   if (!HAS_RT) { localLoad(); document.getElementById('xl').hidden = false; document.getElementById('bk').hidden = false; }
-  rebuild(); syncTabs(); route(); toToday(false);
+  rebuild(); syncTabs(); route(); toToday(false); requestAnimationFrame(settle);
 
   if (window.claude && typeof window.claude.use === 'function') {
     var noDb = function () { if (localLoad()) { rebuild(); render(); } };

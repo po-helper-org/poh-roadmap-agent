@@ -620,6 +620,115 @@ body.dresize { cursor: ew-resize; user-select: none; }
 .rg-add .cb-btn { align-self: flex-end; }
 .rg-row.fresh { background: color-mix(in srgb, var(--s-work) 8%, transparent); } .rg-row.fresh .rg-st { color: var(--s-work); }
 .rg-rm { margin: 0 0 8px 22px; font-size: 12px; }
+
+/* ---------- телефон (≤ 640 px): ширина левой колонки задаёт lw() в roadmap.js ---------- */
+.fl-s, .cl-s { display: none; }
+@media (max-width: 700px) {
+  /* сайдбары задачи и вопроса — на весь экран под верхней панелью; ширина из перетаскивания (rm-dw) не действует */
+  .drawer, .qdr { top: var(--cbar); bottom: 0; left: 0; right: 0; width: 100% !important; max-height: none; border-left: 0; border-top: 1px solid var(--line-strong); transform: translateY(100%); }
+  .drawer.open { transform: none; }
+  .dnav { margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 640px) {
+  :root { --cbar: 52px; }
+  html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  /* верхняя панель: кнопки прокручиваются вбок, не обрезаются */
+  .cbar { padding: 0 0 0 8px; gap: 0; }
+  .cb-l { display: none; }
+  .cb-r { flex: 1 1 auto; min-width: 0; height: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding-right: 24px;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent); }
+  .cb-r::-webkit-scrollbar { display: none; }
+  .cb-btn { flex: none; height: 40px; padding: 0 14px; font-size: 14px; }
+  .cp-foot .cb-btn { height: 40px; font-size: 13px; }
+  .cpanel { left: 8px; right: 8px; width: auto; max-width: none; }
+  /* нижние кнопки: короче подписи, отступ снизу у прокручиваемой области — чтобы не закрывали строки */
+  .fabs { right: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); gap: 6px; }
+  .fab { height: 40px; padding: 0 12px; font-size: 13px; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
+  .fl-l, .cl-l { display: none; } .fl-s, .cl-s { display: inline; }
+  .row.pad { min-height: 72px; }
+  .toast { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+
+  /* шапка левой колонки */
+  .corner { padding: 8px 10px 6px 12px; }
+  .ctitle { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+  .ctitle .condlink { margin-left: auto; }
+  .legend { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; font-size: 13px; } .legend::-webkit-scrollbar { display: none; }
+  .legend span { flex: none; }
+  .ctop { justify-content: flex-start; gap: 6px; height: 30px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .ctop::-webkit-scrollbar { display: none; }
+  .ctop > * { flex: none; }
+  .ctop .tog, .ctop .tog + .tog, .ctop .condlink { margin-left: 0; }
+  .tog button { height: 28px; font-size: 13px; }
+  .back { height: 28px; font-size: 13px; }
+  .condlink { margin-left: 6px; padding: 3px 8px; font-size: 13px; }
+  .cname { margin-top: 2px; font-size: 14px; }
+
+  /* обзор треков */
+  .row.go .lc { padding: 10px 12px; gap: 3px; }
+  .tn { font-size: 14px; line-height: 19px; } .tn i { font-size: 13px; }
+  .tr, .ts { font-size: 13px; line-height: 17px; }
+
+  /* дерево задач: номер и название в первой строке, «ответственный · готово · вопросы» — второй строкой */
+  .tr6 { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 0; row-gap: 2px; font-size: 14px; }
+  .tr6 > .cn, .tr6 > .ct { order: 1; }
+  .tr6::after { content: ''; order: 2; flex: 0 0 100%; height: 0; }
+  .tr6 > .cw, .tr6 > .cpc, .tr6 > .cq { order: 3; flex: none; max-width: 100%; font-size: 13px; line-height: 18px; }
+  .tr6 > .cr { display: none; }
+  .tr6 .cn { flex: none; margin-right: 6px; font-size: 13px; line-height: 19px; }
+  .tr6 .cn:empty { margin-right: 0; }
+  .tr6 .ct { flex: 1 1 60%; min-width: 0; align-self: flex-start; }
+  .tr6 .ct b { font-size: 14px; line-height: 19px; overflow-wrap: break-word; word-break: normal; hyphens: auto;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tr6 .cw { white-space: normal; } .tr6 .cw .cwn { display: inline; } .tr6 .cw .cwn + .cwn { margin-left: 4px; }
+  .tr6 .cpc::before, .tr6 .cq::before { content: '·'; margin: 0 5px; color: var(--muted); }
+  .tr6 .cpc, .tr6 .cq, .tr6 .cd { font-size: 13px; text-align: left; }
+  .row.tk .tr6 { margin-left: 0; width: 100%; } .row.tk .tr6 .cn { padding-left: 0; }
+  .row.thd .lc { padding: 6px 8px 6px 30px; }
+  .row.thd .tr6 > span, .row.thd .tr6 .cw, .row.thd .tr6 .cpc, .row.thd .tr6 .cq { font: 400 13px/17px var(--font); letter-spacing: 0; text-transform: none; color: var(--muted); }
+  .row.thd .tr6 .ct { font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+  .row.tk { --pl: 30px; } .row.l0 { --pl: 30px; } .row.l1 { --pl: 34px; } .row.l2 { --pl: 46px; } .row.l3 { --pl: 58px; }
+  .row.tk .lc { padding: 8px 8px 8px var(--pl); }
+  .row.tk .tg { left: calc(var(--pl) - 29px); top: calc(50% - 14px); width: 28px; height: 28px; padding: 6px; }
+  .row.sh .stbtn { padding-left: calc(28px + var(--ind, 0px)); padding-right: 8px; }
+  .rolebtn { padding-right: 8px; }
+  .addb, .grip, .dgrip { display: none; }
+  .bar .ul, .gbar span { font-size: 12px; }
+
+  /* сайдбары */
+  .x { width: 40px; height: 40px; margin: -10px -8px 0 0; } .x svg { width: 20px; height: 20px; }
+  .dhead { padding: 14px 16px 8px; }
+  .dnav button { height: 40px; }
+  .prow { min-height: 44px; } .psel, .pdate { height: 40px; font-size: 14px; }
+  .prow .pk, .prow .pv { font-size: 14px; }
+
+  /* реестр вопросов: карточки вместо широкой таблицы */
+  .cv, .cv.cv-wide { padding: 12px 16px 96px; }
+  .cv-head h1 { font-size: 20px; line-height: 26px; }
+  .cv-sum { margin: 8px 0 12px; } .cv-sum .cb-btn { margin-left: 0; }
+  .qtab { height: 40px; padding: 0 12px; font-size: 13px; }
+  .qtgrp { font-size: 13px; }
+  .qst { font-size: 13px; }
+  .cb-btn b { min-width: 22px; height: 22px; font-size: 13px; line-height: 22px; border-radius: 11px; }
+  .condlink .cn-risk { font-size: 13px; line-height: 18px; }
+  h2.qgoal { padding: 12px; font-size: 16px; line-height: 22px; }
+  .cv .qt-wrap { overflow: visible; }
+  .cv .qt, .cv .qt tbody { display: block; width: 100%; min-width: 0; }
+  .cv .qt thead { display: none; }
+  .cv .qt tbody tr { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px 10px; padding: 12px; border-bottom: 1px solid var(--line); }
+  .cv .qt tbody tr:last-child { border-bottom: 0; }
+  .cv .qt td { display: block; min-width: 0 !important; padding: 0; border: 0; font-size: 14px; line-height: 20px; }
+  .cv .qt td.qid { grid-column: 1; grid-row: 1; font-size: 13px; }
+  .cv .qt td.qstc { grid-column: 2; grid-row: 1; justify-self: start; }
+  .cv .qt td.qq, .cv .qt td.qans, .cv .qt td.qwho, .cv .qt td.qnote, .cv .qt td.qnone { grid-column: 1 / -1; }
+  .cv .qt td:empty { display: none; }
+  .cv .qt td.qnote { font-size: 13px; }
+  .cv .qt td[data-l]::before { content: attr(data-l) ': '; color: var(--muted); font-size: 13px; }
+  .cv .qt tbody tr.qg { display: block; padding: 0; }
+  .cv .qt tr.qg td { padding: 10px 12px; font-size: 14px; }
+  .cv .qt tbody tr:hover td { background: transparent; }
+  .cv .qt tbody tr.on { background: var(--accent-tint); } .cv .qt tbody tr.on td { background: transparent; }
+  .qalso-b { height: 36px; font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -644,7 +753,7 @@ body.dresize { cursor: ew-resize; user-select: none; }
   <div class="cp-act"><span class="k">Ctrl+Enter</span><button class="cb-btn" id="cpCancel" type="button">Отмена</button><button class="cb-btn primary" id="cpAdd" type="button">Добавить</button></div>
 </div>
 <div id="sc"></div>
-<div class="fabs"><button class="fab ghost" id="bk" type="button" hidden title="Архив для восстановления: страница, md-исходники, реестр вопросов, правки из браузера, инструмент и инструкция для ИИ-агента">Экспортировать</button><button class="fab ghost" id="xl" type="button">Экспортировать в .xlsx</button><button class="fab" id="fab" type="button">Сегодня</button></div>
+<div class="fabs"><button class="fab ghost" id="bk" type="button" hidden title="Архив для восстановления: страница, md-исходники, реестр вопросов, правки из браузера, инструмент и инструкция для ИИ-агента"><span class="fl-l">Экспортировать</span><span class="fl-s">Архив</span></button><button class="fab ghost" id="xl" type="button"><span class="fl-l">Экспортировать в </span>.xlsx</button><button class="fab" id="fab" type="button">Сегодня</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="application/json" id="data">__DATA__</script>
