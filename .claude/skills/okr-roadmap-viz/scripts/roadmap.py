@@ -13,6 +13,8 @@
                                     пакет руководству .xlsx: Roadmap · ГАНТТ · Реестр вопросов · Беклог задач
   roadmap.py letter <папка> -o <letter.txt> [--track N] [--goals 1,2,3,4] [--date ГГГГ-ММ-ДД] [--xlsx <имя вложения>]
                                     текст письма руководству к пакету
+  roadmap.py daily  <папка> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o reports/daily/ГГГГ-ММ-ДД.md]
+                                    дейлик: отчёт о продвижении к целям за период (один запуск — один файл)
 
 Источник истины — <папка>/roadmap.md (паспорт: роли, выходные, треки, этапы,
 целевые состояния) и <папка>/backlog/*.md (задачи своего трека, по файлу на
@@ -1724,7 +1726,8 @@ def sources(folder, rm=None):
                     if name.endswith('.md') and not name.startswith('.'):
                         out[f'{pre}/{sub}/{name}'] = read(os.path.join(sd, name))
     root = os.path.dirname(HERE)
-    for rel in ['SKILL.md', 'resources/format.md', 'scripts/roadmap.py', 'scripts/xlsx_pack.py', 'scripts/assets/template.html',
+    for rel in ['SKILL.md', 'resources/format.md', 'scripts/roadmap.py', 'scripts/xlsx_pack.py', 'scripts/daily.py',
+                'scripts/assets/template.html',
                 'scripts/assets/roadmap.js']:
         p = os.path.join(root, rel)
         if os.path.isfile(p):
@@ -1865,7 +1868,7 @@ def cmd_pack(argv):
 
 
 def main(argv):
-    if len(argv) < 3 or argv[1] not in ('init', 'lint', 'tree', 'build', 'report', 'questions', 'xlsx', 'letter'):
+    if len(argv) < 3 or argv[1] not in ('init', 'lint', 'tree', 'build', 'report', 'questions', 'xlsx', 'letter', 'daily'):
         print(__doc__.strip())
         return 2
     folder = argv[2]
@@ -1880,6 +1883,9 @@ def main(argv):
         return cmd_tree(folder)
     if argv[1] in ('xlsx', 'letter'):
         return cmd_pack(argv)
+    if argv[1] == 'daily':
+        import daily   # дейлик — scripts/daily.py
+        return daily.cmd_daily(argv)
     if argv[1] == 'questions':
         rest = [a for a in argv[3:] if a != '--open']
         return cmd_questions(folder, rest[0] if rest else None, '--open' in argv)

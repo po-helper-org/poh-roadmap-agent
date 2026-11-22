@@ -54,15 +54,17 @@
 | 8 | Комментарии и журнал | вставьте промпт со страницы | `roadmap-08-comments` | правки в md, `journal.csv` |
 | 9 | Пакет руководству | «сделай xlsx для руководства» | `roadmap-09-leadership-pack` | .xlsx (Roadmap · ГАНТТ · Реестр вопросов · Беклог задач) и письмо |
 | 10 | Бэкап и передача | «сделай бэкап», «передай работу» | `roadmap-10-backup` | .zip для macOS, `HANDOFF.md` |
+| 11 | Ежедневная актуализация и отчёт | «дейлик», расписание с `templates/daily-brief.md` | `roadmap-11-daily` | строки журнала и реестра, `reports/daily/ГГГГ-ММ-ДД.md` |
 
-Этапы 2–6 проходятся по каждой цели; первая разобранная цель становится эталоном для остальных. Полный текст
+Этапы 2–6 проходятся по каждой цели; первая разобранная цель становится эталоном для остальных. Этап 11 — каждый день
+после того, как цели и шаги на карте (раздел «Дейлик по расписанию»). Полный текст
 методологии с примерами «плохо → хорошо» и историей проекта — [`docs/methodology.md`](docs/methodology.md).
 
 ## Пример результата
 
 [`examples/school-migration/`](examples/school-migration/) — вымышленная цель «Переезд онлайн-школы на платформу Б»:
-два стрима на одной сборной карте, 4 целевых состояния, 26 задач, 20 вопросов, журнал, решения PO и пакет
-руководству (.xlsx и письмо).
+два стрима на одной сборной карте, 4 целевых состояния, 26 задач, 21 вопрос, журнал, решения PO, пакет
+руководству (.xlsx и письмо) и два дейлика.
 
 ```
 examples/school-migration/
@@ -73,12 +75,14 @@ examples/school-migration/
   reports/Решения_PO_18.11.2026.md                 решения за PO: варианты и рекомендация агента
   reports/Цель01_…_Roadmap_19.11.2026.xlsx         пакет руководству (вывод bin/roadmap xlsx)
   reports/Письмо_руководству_19.11.2026.txt        письмо к нему (вывод bin/roadmap letter)
+  reports/daily/2026-11-19.md, 2026-11-22.md       дейлики (вывод bin/roadmap daily)
 ```
 
 ```bash
 bin/roadmap build  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html    # откройте в браузере
 bin/roadmap xlsx   examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.xlsx --track 1 --date 2026-11-19
 bin/roadmap letter examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.txt  --track 1 --date 2026-11-19
+bin/roadmap daily  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/daily.md   --date 2026-11-22 --since 2026-11-19
 ```
 
 Страницы и `roadmap.json` в git не кладутся (`.gitignore`): их пересобирает `bin/roadmap`. Пакет руководству в
@@ -96,7 +100,7 @@ CLAUDE.md, AGENTS.md            короткие инструкции агент
     resources/format.md         формат roadmap.md, backlog/*.md, questions.csv, journal.csv
     scripts/                    roadmap.py, xlsx_pack.py, шаблон страницы (assets/), тесты и фикстуры
 docs/methodology.md             методология для человека
-templates/                      шаблоны: паспорт, ЦС/шаг/подзадача, questions.csv, journal.csv, решения PO, письмо, HANDOFF, сценарии роя
+templates/                      шаблоны: паспорт, ЦС/шаг/подзадача, questions.csv, journal.csv, решения PO, письмо, HANDOFF, бриф-дейлик, сценарии роя
 examples/school-migration/      сквозной пример
 bin/roadmap, check-qlinks, backup
 ```
@@ -107,6 +111,23 @@ bin/roadmap, check-qlinks, backup
 Почему так: навык на этап держит в контексте агента только то, что нужно сейчас, и вызывается вашими словами;
 конституция и формат — общие для всех этапов и лежат при инструменте; пример — единственный эталон, на который
 ссылаются конституция и навыки, поэтому агент копирует структуру и плотность, а не данные.
+
+## Дейлик по расписанию
+
+Когда цели и шаги на карте, агент каждый день переносит в неё сказанное PO и командой и выпускает один отчёт
+`reports/daily/ГГГГ-ММ-ДД.md`: итог за период, по каждой ЦС — прогресс (было → стало), шаги, записи журнала, вопросы
+(закрыто, новые, критичные, без ответственного), затем риски, следующие шаги на 7 дней и вопросы к PO. Отчёт строит
+`bin/roadmap daily` из файлов карты; агент только записывает данные и отвечает PO. Пример —
+[`examples/school-migration/reports/daily/`](examples/school-migration/reports/daily/).
+
+Промпт запланированной сессии — [`templates/daily-brief.md`](templates/daily-brief.md), один для всех агентов:
+
+- **Claude Code** — scheduled task (облачная сессия по расписанию, например по будням в 18:40) с этим промптом и
+  папкой цели вместо `<папка цели>`;
+- **Codex и другие** — cron или планировщик агента с тем же промптом; навыки агент читает по путям из `AGENTS.md`.
+
+В той же сессии можно спросить о статусе: агент отвечает только по карте, журналу и последнему отчёту, со ссылками на
+задачи и `Q-NN`.
 
 ## Команды
 
@@ -119,14 +140,15 @@ bin/roadmap, check-qlinks, backup
 | `bin/roadmap questions <папка> [<id>] [--open]` | реестр вопросов текстом |
 | `bin/roadmap xlsx <папка> -o <файл.xlsx> [--track N] [--goals 1,2] [--date ГГГГ-ММ-ДД]` | пакет руководству, 4 листа |
 | `bin/roadmap letter <папка> -o <письмо.txt> [--track N] [--date …] [--xlsx <имя>]` | письмо к .xlsx |
+| `bin/roadmap daily <папка> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o <файл.md>]` | дейлик: один отчёт о продвижении к целям за период (по умолчанию `reports/daily/<дата>.md`, период — с прошлого отчёта) |
 | `bin/check-qlinks <папка>` | каждый `Q-NN` из текста задачи стоит в «Влияет на» задачи или предка |
 | `bin/backup <out.zip> [доп. папки]` | бэкап, который открывается на macOS |
 
 ## Инструмент
 
 `okr-roadmap-viz` — Python 3, только стандартная библиотека: `scripts/roadmap.py` (lint, build, tree, questions, report),
-`scripts/xlsx_pack.py` (пакет .xlsx и письмо), шаблон страницы `scripts/assets/`. Одинаковые md и csv — байт в байт
-одинаковые страница и .xlsx. Тесты — `python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts`
+`scripts/xlsx_pack.py` (пакет .xlsx и письмо), `scripts/daily.py` (дейлик), шаблон страницы `scripts/assets/`. Одинаковые md и csv — байт в байт
+одинаковые страница, .xlsx и дейлик. Тесты — `python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts`
 (их же гоняет CI вместе с проверкой примера).
 
 ## Лицензия

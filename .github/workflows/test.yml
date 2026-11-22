@@ -15,5 +15,6 @@ jobs:
           bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01
           bin/check-qlinks examples/school-migration/.okr/roadmap/goal-01
           bin/roadmap build examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html
+          bin/roadmap daily examples/school-migration/.okr/roadmap/goal-01 --date 2026-11-22 -o /tmp/daily.md --since 2026-11-19
       - name: Новая карта собирается
         run: bin/roadmap init /tmp/new-goal --title "Проверка init" && bin/roadmap build /tmp/new-goal

@@ -45,6 +45,7 @@ python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py questions .okr/
 python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py report .okr/roadmap/<slug> [<id вехи>|<трек>@<дата>|goal@<дата>|all] [--today ГГГГ-ММ-ДД] [--json]
 python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py xlsx   .okr/roadmap/<slug> -o <out.xlsx>   [--track N] [--goals 1,2,3,4] [--date ГГГГ-ММ-ДД]
 python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py letter .okr/roadmap/<slug> -o <letter.txt> [--track N] [--goals …] [--date …] [--xlsx <имя вложения>]
+python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py daily  .okr/roadmap/<slug> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o reports/daily/ГГГГ-ММ-ДД.md]
 ```
 
 Запускай из корня воркспейса: путь к папке попадает в промпт, который страница
@@ -187,6 +188,13 @@ python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py build .okr/road
 4. Отдай PO путь к файлу и одну строку: целей, эпиков, историй, задач, открытых вопросов (печатает команда).
 
 Тот же файл встроен в страницу при `build` — кнопка «Экспортировать в .xlsx» (первый свой трек, по данным сборки).
+
+### Дейлик: `daily`
+
+PO просит ежедневный отчёт или идёт запланированная сессия с промптом `templates/daily-brief.md` — навык
+`roadmap-11-daily`: данные — в журнал и реестр, затем `daily <папка> --date <сегодня>`. Один запуск — один файл
+`reports/daily/<дата>.md`; формат и правило расчёта прогресса — `resources/format.md`, раздел «Дейлик». Отчёт руками не
+правь.
 
 ### Этап 4: Комментарии со страницы
 
