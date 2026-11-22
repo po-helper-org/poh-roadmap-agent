@@ -141,13 +141,16 @@ bin/roadmap, check-qlinks, backup
 | `bin/roadmap xlsx <папка> -o <файл.xlsx> [--track N] [--goals 1,2] [--date ГГГГ-ММ-ДД]` | пакет руководству, 4 листа |
 | `bin/roadmap letter <папка> -o <письмо.txt> [--track N] [--date …] [--xlsx <имя>]` | письмо к .xlsx |
 | `bin/roadmap daily <папка> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o <файл.md>]` | дейлик: один отчёт о продвижении к целям за период (по умолчанию `reports/daily/<дата>.md`, период — с прошлого отчёта) |
+| `bin/roadmap journal add <папка стрима> --object <id> --type прогресс\|комментарий --date … [--progress N] [--status …] [--text …] [--author …]` | строка в конец `journal.csv`: проверка как у `lint`, без повторов |
+| `bin/roadmap question answer <папка стрима> Q-NN --answer … --source … --date …` | ответ в `questions.csv`: «Ответ», «Статус», строка «Истории» |
 | `bin/check-qlinks <папка>` | каждый `Q-NN` из текста задачи стоит в «Влияет на» задачи или предка |
 | `bin/backup <out.zip> [доп. папки]` | бэкап, который открывается на macOS |
 
 ## Инструмент
 
 `okr-roadmap-viz` — Python 3, только стандартная библиотека: `scripts/roadmap.py` (lint, build, tree, questions, report),
-`scripts/xlsx_pack.py` (пакет .xlsx и письмо), `scripts/daily.py` (дейлик), шаблон страницы `scripts/assets/`. Одинаковые md и csv — байт в байт
+`scripts/xlsx_pack.py` (пакет .xlsx и письмо), `scripts/daily.py` (дейлик), `scripts/records.py` (запись в журнал и
+ответ в реестр), шаблон страницы `scripts/assets/`. Одинаковые md и csv — байт в байт
 одинаковые страница, .xlsx и дейлик. Тесты — `python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts`
 (их же гоняет CI вместе с проверкой примера).
 

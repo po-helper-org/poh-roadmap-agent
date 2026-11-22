@@ -16,6 +16,11 @@
                                     пакет руководству .xlsx: Roadmap · ГАНТТ · Реестр вопросов · Беклог задач
   roadmap.py letter <папка> -o <letter.txt> [--track N] [--goals 1,2,3,4] [--date ГГГГ-ММ-ДД] [--xlsx <имя вложения>]
                                     текст письма руководству к пакету
+  roadmap.py journal add <папка> --object <id|Q-NN> --type прогресс|комментарий --date ГГГГ-ММ-ДД[Tчч:мм]
+                    [--progress N] [--status …] [--text …] [--author …]
+                                    дописать строку в journal.csv папки стрима (проверка как у lint, без повторов)
+  roadmap.py question answer <папка> <Q-NN> --answer … --source … --date ГГГГ-ММ-ДД [--status Готово] [--replace]
+                                    записать ответ в questions.csv: Ответ, Статус, строка Истории
   roadmap.py daily  <папка> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o reports/daily/ГГГГ-ММ-ДД.md]
                                     дейлик: отчёт о продвижении к целям за период (один запуск — один файл)
 
@@ -2040,6 +2045,9 @@ def main(argv):
     if len(argv) >= 2 and argv[1] in ('-h', '--help', 'help'):
         print(__doc__.strip())
         return 0
+    if len(argv) >= 2 and argv[1] in ('journal', 'question'):
+        import records   # запись в journal.csv и ответ в questions.csv — scripts/records.py
+        return records.cmd_journal(argv) if argv[1] == 'journal' else records.cmd_question(argv)
     if len(argv) >= 2 and argv[1] == 'init':
         a = init_args(argv)
         return a if isinstance(a, int) else cmd_init(*a)
