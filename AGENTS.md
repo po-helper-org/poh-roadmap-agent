@@ -2,33 +2,66 @@
 
 Тот же свод, что в `CLAUDE.md`. Автозагрузки навыков нет: открой файлы сам.
 
+## Быстрый старт для Codex
+
+1. Прочитай `HANDOFF.md` (если есть), затем `CLAUDE.md` и `.claude/skills/roadmap-methodology/SKILL.md`.
+2. Найди этап: фраза PO — по таблице ниже; иначе первый этап, чей критерий «Готово, когда» не выполнен.
+3. Прочитай `SKILL.md` этапа; пишешь md — сначала `.claude/skills/okr-roadmap-viz/resources/constitution.md`, затем
+   `format.md` рядом; эталон — `examples/school-migration/`.
+4. Пиши только md и `questions.csv`; журнал и ответы — командами `bin/roadmap journal add …` и `bin/roadmap question
+   answer …` (свои скрипты для CSV не пиши).
+5. После каждой правки: `bin/roadmap lint <папка>` → «Принято»; `bin/check-qlinks <папка>` → «Нарушений: 0»;
+   `bin/roadmap build <папка цели> -o roadmap.html`.
+6. Меняешь код инструмента — `python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts`; перед коммитом
+   в публичный репозиторий — `bin/check-anon`.
+7. Коммит на русском с сутью правки, отчёт PO с пробелами (формат — в навыке методологии).
+
+## Фраза PO → навык и файлы
+
+| Этап | PO говорит | Навык (`.claude/skills/…/SKILL.md`) | Что ещё открыть |
+|---|---|---|---|
+| 0 | «вот материалы», «начинаем планирование», «вот состав команды» | `roadmap-00-sources` | `templates/po-messages.md`; `bin/roadmap init --help` |
+| 1 | «собери цели», «целевые состояния», «только цели и даты» | `roadmap-01-goals` | `templates/backlog/ts.md`, конституция, статья I.6 |
+| 2 | «разложи цель на шаги», «путь объекта», «что нужно, чтобы всё заработало» | `roadmap-02-path` | `templates/backlog/step.md`, `docs/methodology.md` (шаг N.0, технический шаг) |
+| 3–4 | «заведи вопросы», «реестр вопросов», «детализируй», «назначь ответственного», «вопросы к созвону» | `roadmap-03-questions` | `roadmap-03-questions/resources/questions-registry.md`, `templates/questions.csv` |
+| 5 | «проверь полноту», «реестр достаточный?», «провалидируй роем», «окончательное решение» | `roadmap-05-completeness` | `templates/workflows/completeness-workflow.js`; без Workflow — ручной режим ниже |
+| 6 | «разложи на подзадачи», «кто что делает», «беклог», «зафиксируй эталон» | `roadmap-06-subtasks` | `templates/backlog/subtask.md`, конституция, статья IV |
+| 7 | «переформулируй цели для бизнеса», «чем цель N отличается от M», «вынеси в стрим», «одна страница на все стримы» | `roadmap-07-business-goals` | `templates/goal-roadmap.md`, `format.md` («Сборная карта») |
+| 8 | вставил промпт со страницы, прислал архив, «внеси комментарии», «отметь прогресс», «запиши в журнал», «шаг 1.1 — 60%» | `roadmap-08-comments` | `format.md` («Журнал …»), таблица «сказал → куда» в навыке |
+| 9 | «сделай xlsx для руководства», «пакет руководству», «письмо руководителям» | `roadmap-09-leadership-pack` | `format.md` («Пакет руководству»), `templates/workflows/factcheck-workflow.js` |
+| 10 | «сделай бэкап», «продолжу в Codex», «передай работу», «обнови HANDOFF» | `roadmap-10-backup` | `templates/HANDOFF.md` |
+| 11 | «дейлик», «что изменилось за день», «статус по целям», запланированный запуск | `roadmap-11-daily` | `templates/daily-brief.md`, `format.md` («Дейлик») |
+| любой | «с чего начать», «что дальше», «на каком мы этапе» | `roadmap-methodology` | `HANDOFF.md`, `sources/po-messages.md` |
+
+Инструмент (md → проверка → страница, .xlsx, письмо, дейлик) — `.claude/skills/okr-roadmap-viz/SKILL.md`: команды и
+разбор комментариев со страницы. В стриме целевых состояний его правила уступают конституции — список расхождений в
+шапке этого файла.
+
 ## Навыки без механизма Skill
 
 Навык — обычный markdown: `.claude/skills/<навык>/SKILL.md`. Шапка между `---` — имя и `description` (когда применять,
 фразы PO после «Use when»); ниже — инструкция: делай по ней как по своей. Ссылки внутри навыка (`resources/…`,
 `format.md`, `templates/…`) открывай сам по путям от корня репозитория. Команды — `bin/roadmap`, `bin/check-qlinks`,
-`bin/backup` (нужен только Python 3). Слова PO из `description` — подсказка, какой навык открыть.
+`bin/backup`, `bin/check-anon` (нужен только Python 3). Слова PO из `description` — подсказка, какой навык открыть.
 
-## Порядок
+## Рой без инструмента Workflow: ручной режим
 
-1. Есть `HANDOFF.md` — прочитай первым.
-2. Прочитай `.claude/skills/roadmap-methodology/SKILL.md` — этапы 0–11, сквозные правила, как определить текущий этап.
-3. Для текущего этапа прочитай его навык:
-   - 0 `.claude/skills/roadmap-00-sources/SKILL.md`
-   - 1 `.claude/skills/roadmap-01-goals/SKILL.md`
-   - 2 `.claude/skills/roadmap-02-path/SKILL.md`
-   - 3–4 `.claude/skills/roadmap-03-questions/SKILL.md` и `resources/questions-registry.md`
-   - 5 `.claude/skills/roadmap-05-completeness/SKILL.md`
-   - 6 `.claude/skills/roadmap-06-subtasks/SKILL.md`
-   - 7 `.claude/skills/roadmap-07-business-goals/SKILL.md`
-   - 8 `.claude/skills/roadmap-08-comments/SKILL.md`
-   - 9 `.claude/skills/roadmap-09-leadership-pack/SKILL.md`
-   - 10 `.claude/skills/roadmap-10-backup/SKILL.md`
-   - 11 `.claude/skills/roadmap-11-daily/SKILL.md`
-4. Пишешь md — сначала `.claude/skills/okr-roadmap-viz/resources/constitution.md` (обязательна) и `format.md`.
-5. **Ежедневный отчёт (дейлик), в том числе запланированный запуск** — читай `templates/daily-brief.md` (алгоритм
-   одного запуска, куда писать сказанное PO) и `.claude/skills/roadmap-11-daily/SKILL.md`; отчёт строит
-   `bin/roadmap daily <папка цели> --date <сегодня>`, формат — `format.md`, раздел «Дейлик».
+Сценарии `templates/workflows/*.js` запускает инструмент Workflow Claude Code. Нет его — проходишь те же роли сам,
+**отдельными проходами по очереди**, с теми же текстами заданий (они в `.js`: `CONTEXT`, `auditPrompt`, линзы
+скептиков, `CROSS`, критик) и теми же правилами вердикта. Полностью — `roadmap-05-completeness/SKILL.md`, раздел
+«Ручной режим».
+
+1. **Аудитор** — по проходу на каждый шаг и на ЦС целиком: вердикт «достаточно / недостаточно», пробелы (вопрос,
+   ожидаемый ответ, цитата источника, серьёзность), вопросы без ценности, неясные. Итог прохода — в рабочий файл.
+2. **Скептик «источник»** — отдельный проход по каждому пробелу: опровергнуть по `sources/`; `real` — только если не
+   вышло.
+3. **Скептик «покрытие»** — отдельный проход: не закрыт ли пробел вопросом, DoD, другим шагом или решением PO.
+4. **Сквозные проверки** (дубли, ответственные и сроки, источники, отвечаемость, карта ↔ реестр) и **критик полноты** —
+   последними, по сводке предыдущих проходов.
+
+Пробел «подтверждён» — оба скептика не опровергли, «спорный» — один, «отклонён» — ни один. Каждый проход заново
+читает файлы, а не полагается на вывод прошлого; скептик видит только карточку пробела. Можешь запускать субагентов —
+по субагенту на проход. Все проходы только читают; файлы меняешь после «да» PO.
 
 ## Правила
 
@@ -36,12 +69,14 @@
   Пробел — сказать PO, а не заполнить.
 - Ответственных, сроки, критичность и исполнителей назначает только PO. Правки PO — дословно, реплики — в
   `sources/po-messages.md`.
-- Пишешь только md, `questions.csv`, `journal.csv` (дописываешь). Страницу, граф, .xlsx и письмо строит `bin/roadmap`
-  (нужен только Python 3): `lint` → `check-qlinks` → `build` → коммит после каждого шага.
+- Пишешь только md, `questions.csv`, `journal.csv` (дописываешь — `bin/roadmap journal add`). Страницу, граф, .xlsx и
+  письмо строит `bin/roadmap` (нужен только Python 3): `lint` → `check-qlinks` → `build` → коммит после каждого шага.
 - Правки PO со страницы приходят промптом «Скопировать промпт» или `PENDING.md` из архива «Экспортировать» — перенеси
   как есть (этап 8).
-- Бэкап — только `bin/backup <out.zip> [доп. папки]`.
+- Бэкап — только `bin/backup <out.zip> [доп. папки]`. В конце каждой сессии — `HANDOFF.md` (этап 10).
+- **Ежедневный отчёт (дейлик), в том числе запланированный запуск** — `templates/daily-brief.md` и
+  `.claude/skills/roadmap-11-daily/SKILL.md`; отчёт строит `bin/roadmap daily <папка цели> --date <сегодня>`.
 - Эталон — `examples/school-migration/`; данные из него не копировать.
-- Реальные данные PO в публичный репозиторий не коммить.
+- Реальные данные PO в публичный репозиторий не коммить; проверка — `bin/check-anon`.
 - Связанный репозиторий: квартальное планирование и исполнительный контроль PO — `poh-okr-agent`. Просят цели квартала,
   TeamPlanner или экватор — предложи его; этот репозиторий — стратегический Roadmap для R&D и стратегии.
