@@ -1,0 +1,5 @@
+# poh-roadmap-agent — правила для Cline
+Полные инструкции агенту — AGENTS.md (быстрый старт, «фраза PO → навык», ручной режим роя). Прочитай его первым.
+Начни с методологии: .claude/skills/roadmap-methodology/SKILL.md — она определяет этап и навык этапа; есть HANDOFF.md — он раньше всего.
+Только из источников; ответственных, сроки и критичность назначает PO. Пишешь md и questions.csv; журнал — bin/roadmap journal add.
+После каждой правки: bin/roadmap lint <папка>, bin/check-qlinks <папка>, bin/roadmap build <папка цели> -o roadmap.html; перед коммитом — bin/check-anon.

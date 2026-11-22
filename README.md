@@ -35,7 +35,8 @@
 3. Дальше агент сам ведёт по этапам: на каждом предлагает, спрашивает вас и записывает только то, на что вы ответили
    «да». Откройте `roadmap.html` в браузере и комментируйте прямо на странице.
 
-Нужен только Python 3 (стандартная библиотека). Codex и другие агенты — читают `AGENTS.md`.
+Нужен только Python 3 (стандартная библиотека). Codex и другие агенты — читают `AGENTS.md` (для Cline и Gemini —
+указатели `.clinerules` и `GEMINI.md` на него).
 
 ## Этапы и что получается на выходе
 
@@ -92,6 +93,7 @@ bin/roadmap daily  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/daily.
 
 ```
 CLAUDE.md, AGENTS.md            короткие инструкции агенту (Claude Code; Codex и другие)
+.clinerules, GEMINI.md          указатели на AGENTS.md для Cline и Gemini
 .claude/skills/
   roadmap-methodology/          главный навык: этапы, сквозные правила, когда рой и бэкап
   roadmap-NN-<этап>/            навык этапа: что делать, вопросы PO, промпты, ошибки, чек-лист приёмки
@@ -102,7 +104,7 @@ CLAUDE.md, AGENTS.md            короткие инструкции агент
 docs/methodology.md             методология для человека
 templates/                      шаблоны: паспорт, ЦС/шаг/подзадача, questions.csv, journal.csv, решения PO, письмо, HANDOFF, бриф-дейлик, сценарии роя
 examples/school-migration/      сквозной пример
-bin/roadmap, check-qlinks, backup
+bin/roadmap, check-qlinks, backup, check-anon
 ```
 
 Ваша работа появится рядом: `sources/` — материалы, `.okr/roadmap/<slug>/` — карта, `reports/` — пакет руководству,
