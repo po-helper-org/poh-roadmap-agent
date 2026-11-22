@@ -134,7 +134,7 @@ bin/roadmap, check-qlinks, backup
 | Команда | Что делает |
 |---|---|
 | `bin/roadmap init <папка> --title "…" [--track "…"]` | заготовка карты по конституции: паспорт, ЦС `ts1`, заголовки `questions.csv` и `journal.csv` (`init --help`) |
-| `bin/roadmap lint <папка>` | проверка md и csv, граф `roadmap.json` |
+| `bin/roadmap lint <папка> [--date ГГГГ-ММ-ДД]` | проверка md и csv, граф `roadmap.json`; с `--date` — ещё и просроченные ответы на вопросы |
 | `bin/roadmap build <папка> [-o roadmap.html]` | страница; папка цели со стримами — сборная страница |
 | `bin/roadmap tree <папка>` | дерево задач с номерами и зависимостями |
 | `bin/roadmap questions <папка> [<id>] [--open]` | реестр вопросов текстом |

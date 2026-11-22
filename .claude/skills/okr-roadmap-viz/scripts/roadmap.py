@@ -4,7 +4,8 @@
   roadmap.py init  <папка> [--title "Название"] [--track "Трек"]
                                     заготовка карты по конституции (паспорт, backlog/ts1, questions.csv, journal.csv);
                                     init --help — что создаётся
-  roadmap.py lint  <папка>          проверить md, записать <папка>/roadmap.json
+  roadmap.py lint  <папка> [--date ГГГГ-ММ-ДД]
+                                    проверить md, записать <папка>/roadmap.json; --date — ещё и просроченные ответы
   roadmap.py tree  <папка>          дерево с номерами, файлами и зависимостями
   roadmap.py build <папка> [-o файл] проверить и собрать <папка>/roadmap.html
   roadmap.py questions <папка> [<id задачи>] [--open]
@@ -992,6 +993,36 @@ def check_questions(rm, rep):
             rep.warn(w, f'{q["id"]}: не указано, на какую задачу влияет — в Roadmap вопрос не появится')
         if not q['who'] and not q['a']:
             rep.warn(w, f'{q["id"]}: открытый вопрос без ответственного')
+        due = q_due(q)
+        if due and q_open(q):   # срок ответа позже старта задачи, которую вопрос блокирует (навык roadmap-03, этап 4 п.4)
+            for a in q['aff']:
+                t = by.get(a)
+                if t and t['start'] and due > t['start']:
+                    rep.warn(w, f'{q["id"]}: срок ответа {ru_date(due)} позже старта {a} ({ru_date(t["start"])}) — '
+                                'задача стартует без ответа: срок ответа раньше или сдвиг старта — решить PO')
+
+
+def q_due(q):
+    """Срок ответа вопроса — последнее «до ДД.ММ.ГГГГ» в «Комментарии» и «Истории» (как лист «Реестр вопросов»), date."""
+    d = xlsx_pack.due(q)
+    try:
+        return dt.date(int(d[6:10]), int(d[3:5]), int(d[0:2])) if d else None
+    except ValueError:
+        return None
+
+
+def q_open(q):
+    return not q['a'] and q.get('status') not in xlsx_pack.DONE_Q
+
+
+def check_overdue_answers(rm, rep, day):
+    """lint --date: открытый вопрос, чей срок ответа раньше даты. Без --date не проверяется — lint не зависит от дня запуска."""
+    for q in rm['questions']:
+        due = q_due(q)
+        if due and due < day and q_open(q):
+            w = f'{q.get("src") or "questions.csv"}: строка {q["row"]}' if q.get('row') else (q.get('src') or 'questions.csv')
+            rep.warn(w, f'{q["id"]}: срок ответа {ru_date(due)} прошёл (на {ru_date(day)}), ответа нет — '
+                        f'ответ получен или новый срок? (отв. {q["who"] or "не назначен"})')
 
 
 def questions_of(rm, tid):
@@ -1679,8 +1710,10 @@ def print_report(rep):
         print('внимание ' + w)
 
 
-def cmd_lint(folder, quiet=False):
+def cmd_lint(folder, quiet=False, day=None):
     rm, rep = load(folder)
+    if day is not None and rm is not None and not rep.errors:
+        check_overdue_answers(rm, rep, day)
     if not quiet:
         print_report(rep)
     if rep.errors or rm is None:
@@ -2013,7 +2046,17 @@ def main(argv):
         return 0
     folder = argv[2]
     if argv[1] == 'lint':
-        rm, _ = cmd_lint(folder)
+        rest, day = argv[3:], None
+        if rest[:1] == ['--date'] and len(rest) == 2:
+            try:
+                day = dt.date.fromisoformat(rest[1])
+            except ValueError:
+                print(f'ОШИБКА  --date «{rest[1]}» — ГГГГ-ММ-ДД')
+                return 2
+        elif rest:
+            print(f'ОШИБКА  lint: неизвестные параметры {" ".join(rest)} (есть только --date ГГГГ-ММ-ДД)')
+            return 2
+        rm, _ = cmd_lint(folder, day=day)
         return 0 if rm else 1
     if argv[1] == 'tree':
         return cmd_tree(folder)

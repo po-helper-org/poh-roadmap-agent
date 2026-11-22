@@ -388,6 +388,32 @@ class Questions(Case):
         self.assertIn('Q-1', out)
         self.assertNotIn('Q-2', out)
 
+    def test_answer_due_after_blocked_start_warns(self):
+        self.write_q('Q-1;А;Модель?;;Иванова;task-6 — API;Срок ответа: до 10.12.2026\n'        # task-6 стартует 07.12
+                     'Q-2;А;Витрина?;;Иванова;task-6 — API;Срок ответа: до 04.12.2026\n'        # раньше старта — норма
+                     'Q-3;А;Решено?;Да;Иванова;task-6 — API;Срок ответа: до 20.12.2026\n'      # отвечен — не важно
+                     'Q-4;А;Без срока?;;Иванова;task-6 — API;\n')
+        rm, rep = roadmap.load(self.dir)
+        late = [w for w in rep.warnings if 'позже старта' in w]
+        self.assertEqual(len(late), 1, late)
+        self.assertIn('Q-1: срок ответа 10.12.2026 позже старта task-6 (07.12.2026)', late[0])
+        self.assertIn('questions.csv: строка 2', late[0])
+
+    def test_overdue_answer_only_with_date(self):
+        self.write_q('Q-1;А;Модель?;;Иванова;task-6 — API;Срок ответа: до 01.12.2026\n'
+                     'Q-2;А;Решено?;Да;Иванова;task-6 — API;Срок ответа: до 01.11.2026\n')
+        code, out = quiet(roadmap.main, ['roadmap.py', 'lint', self.dir])
+        self.assertEqual(code, 0)
+        self.assertNotIn('прошёл', out)                               # без --date день запуска не важен
+        code, out = quiet(roadmap.main, ['roadmap.py', 'lint', self.dir, '--date', '2026-12-02'])
+        self.assertEqual(code, 0)
+        self.assertIn('Q-1: срок ответа 01.12.2026 прошёл (на 02.12.2026)', out)
+        self.assertNotIn('Q-2: срок', out)                            # отвечен
+        code, out = quiet(roadmap.main, ['roadmap.py', 'lint', self.dir, '--date', '2026-12-01'])
+        self.assertNotIn('прошёл', out)                               # в день срока ещё не просрочен
+        self.assertEqual(quiet(roadmap.main, ['roadmap.py', 'lint', self.dir, '--date', '01.12.2026'])[0], 2)
+        self.assertEqual(quiet(roadmap.main, ['roadmap.py', 'lint', self.dir, '--today'])[0], 2)
+
     def test_questions_errors(self):
         self.write_q('Q-1;;;;;task-99;\nQ-1;;Дубль?;;;;\n')
         e = self.errors()

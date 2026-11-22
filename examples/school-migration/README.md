@@ -25,7 +25,7 @@
 ## Проверка
 
 ```bash
-bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01      # «Принято», 10 предупреждений
+bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01      # «Принято», 14 предупреждений
 bin/check-qlinks examples/school-migration/.okr/roadmap/goal-01      # «Нарушений: 0»
 bin/roadmap build examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html
 bin/roadmap xlsx  examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.xlsx --track 1 --date 2026-11-19
@@ -35,5 +35,7 @@ bin/roadmap daily  examples/school-migration/.okr/roadmap/goal-01 --date 2026-11
                                                                     # пересобирает reports/daily/2026-11-22.md теми же байтами
 ```
 
-Ожидаемые предупреждения `lint`: «веха без даты» у `ts3` (форма ЦС без источников) и 9 «открытый вопрос без
-ответственного» — ответственных назначает только PO, пробел вынесен в `reports/Решения_PO_18.11.2026.md`.
+Ожидаемые предупреждения `lint`: «веха без даты» у `ts3` (форма ЦС без источников), 9 «открытый вопрос без
+ответственного» — ответственных назначает только PO, пробел вынесен в `reports/Решения_PO_18.11.2026.md`, — и 4 «срок
+ответа позже старта» (Q-01 и Q-09: шаг 1.1 и ЦС1 идут с 02.11, ответ нужен по ходу работы — пробел для PO: подтвердить
+или сдвинуть старт). `lint … --date 2026-11-22` просроченных ответов не находит.
