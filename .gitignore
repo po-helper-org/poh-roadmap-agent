@@ -6,3 +6,4 @@ __pycache__/
 examples/*/.okr/roadmap/*/roadmap.html
 examples/*/.okr/roadmap/*/roadmap.json
 .claude/worktrees/
+/roadmap.html
