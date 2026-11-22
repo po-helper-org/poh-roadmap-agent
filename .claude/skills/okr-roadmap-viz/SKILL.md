@@ -1,23 +1,37 @@
 ---
 name: okr-roadmap-viz
-description: Визуальный roadmap цели — из всех наработок PO (выгрузки GanttPRO, таблицы, заметки, Scope и TeamPlanner, Jira, разговор) агент собирает декомпозицию в md (паспорт roadmap.md и задачи backlog/*.md в формате Backlog.md), линтер проверяет её и строит граф зависимостей, сборщик детерминированно делает один html — бесконечная шкала по неделям, треки, этапы, вехи, целевые состояния, зависимости, экспорт в xlsx и верхняя панель комментариев для агента. Используй когда — /okr-roadmap-viz, визуализировать roadmap, нарисовать roadmap цели, диаграмма Ганта по цели, обновить roadmap, разобрать комментарии к roadmap, промпт из панели комментариев roadmap.
+description: Визуальный roadmap цели — из всех наработок PO (выгрузки GanttPRO, таблицы, заметки, Scope и TeamPlanner, Jira, разговор) агент собирает декомпозицию в md (паспорт roadmap.md и задачи backlog/*.md в формате Backlog.md), линтер проверяет её и строит граф зависимостей, сборщик детерминированно делает один html — бесконечная шкала по неделям, треки, этапы, вехи, целевые состояния, зависимости, экспорт в xlsx и верхняя панель комментариев для агента. Используй когда — визуализировать roadmap, нарисовать roadmap цели, диаграмма Ганта по цели, обновить roadmap, разобрать комментарии к roadmap, промпт из панели комментариев roadmap.
 ---
 
 # Навык: Roadmap цели — md → граф → html
 
+> **Конституция старше этого файла.** В стриме целевых состояний (вся методология `roadmap-*` и пример
+> `examples/school-migration/`) оформляешь по `resources/constitution.md`; правила ниже — общий формат инструмента и
+> старые правила импорта произвольного Ганта. Расходятся — побеждает конституция. Не применяются в стриме ЦС:
+>
+> | Здесь | По конституции |
+> |---|---|
+> | Этап 1 п.1: `- нумерация: <N>` у своего трека | нумерации у трека нет, номер `N`/`N.k` — в `title` (статья I.4) |
+> | Этап 1 п.2: id `task-1`, `task-2` … | `ts<N>` — ЦС, `s<N><k>` — шаг, `w<код WBS>` / `s<N><k>-<n>` — подзадача (статья I.1) |
+> | Этап 1 п.3: подзадачи «ВОПРОС: …», `type: blocker` | вопросы — только в `questions.csv`, блокеров нет (принцип 7; исключение — поправка 6) |
+> | Этап 1 п.4: `ordinal` шагом 10 | `ordinal` — номер PO, порядок пути, коды WBS (статья I.8) |
+> | Этап 1 п.5: номера в `title` не пиши | номер пишется в `title`: «1. …», «1.2 …» (статьи I.4, II.1–2) |
+> | Этап 1 п.7: `### Фичи`, `feature:`, решения-блокеры и вехи-результаты | фичи не используются (поправка 1), результат ЦС и решения — пункты DoD (статья II.6–7) |
+> | `roadmap.md`: «### Целевые состояния» своего трека | ЦС — файлы `backlog/ts<N>` (статья I.4) |
+> | Этап 5: реестр условий `conditions/` и `report` | условий в стриме ЦС нет (статья I.3); «на чём держится срок» — вопросы реестра |
+>
+> Формат полей и проверки `lint` — `resources/format.md` в любом случае.
+
 ## Использование
 
-```
-/okr-roadmap-viz <slug|папка> [что сделать]
-```
+Навык вызывается словами PO (фразы — в `description`); команды — `bin/roadmap <команда> <папка>` из корня
+репозитория (обёртка над `scripts/roadmap.py`). `<slug>` — короткое имя цели латиницей (`goal-01`), папка —
+`.okr/roadmap/<slug>/`. Первый запуск собирает roadmap из наработок, следующие — правят его. Если PO вставил
+промпт из панели комментариев страницы — это тот же навык, этап 4 (и этап 8 методологии, `roadmap-08-comments`).
 
-`<slug>` — короткое имя цели латиницей (`goal-01`), папка — `.okr/roadmap/<slug>/`.
-Первый запуск собирает roadmap из наработок, следующие — правят его. Если PO вставил
-промпт из панели комментариев страницы — это тот же навык, этап 4.
-
-**Целевые состояния (ЦС) — по конституции.** Декомпозируешь или правишь ЦС — сначала прочитай
+**Целевые состояния (ЦС) — по конституции** (шапка выше). Декомпозируешь или правишь ЦС — сначала прочитай
 `resources/constitution.md` (принципы, статьи, порядок работы, чек-лист приёмки) и эталон ЦС1, на который она
-ссылается. В стриме ЦС конституция старше этого навыка.
+ссылается.
 
 ## На выходе
 
@@ -31,21 +45,23 @@ description: Визуальный roadmap цели — из всех нараб�
 .okr/roadmap/<slug>/roadmap.html   страница — пишет build
 ```
 
-Формат и проверки — `.claude/skills/okr-roadmap-viz/resources/format.md`. Эталон —
-`.claude/skills/okr-roadmap-viz/scripts/fixtures/sample/`. Скрипт —
-`.claude/skills/okr-roadmap-viz/scripts/roadmap.py` (в репозитории — обёртка `bin/roadmap`),
-только Python 3:
+Формат и проверки — `.claude/skills/okr-roadmap-viz/resources/format.md`. Эталон формата —
+`.claude/skills/okr-roadmap-viz/scripts/fixtures/sample/`, эталон карты ЦС — `examples/school-migration/`. Скрипт —
+`.claude/skills/okr-roadmap-viz/scripts/roadmap.py`, в репозитории — обёртка `bin/roadmap`; только Python 3. Команды
+из корня репозитория (без обёртки — `python3 .claude/skills/okr-roadmap-viz/scripts/roadmap.py …`):
 
 ```bash
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py init  .okr/roadmap/<slug> --title "Цель 01. …"
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py lint  .okr/roadmap/<slug>
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py tree  .okr/roadmap/<slug>
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py build .okr/roadmap/<slug>
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py questions .okr/roadmap/<slug> [<id задачи>] [--open]
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py report .okr/roadmap/<slug> [<id вехи>|<трек>@<дата>|goal@<дата>|all] [--today ГГГГ-ММ-ДД] [--json]
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py xlsx   .okr/roadmap/<slug> -o <out.xlsx>   [--track N] [--goals 1,2,3,4] [--date ГГГГ-ММ-ДД]
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py letter .okr/roadmap/<slug> -o <letter.txt> [--track N] [--goals …] [--date …] [--xlsx <имя вложения>]
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py daily  .okr/roadmap/<slug> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o reports/daily/ГГГГ-ММ-ДД.md]
+bin/roadmap init  .okr/roadmap/<slug> --title "Цель 01. …"        # init --help — что создаётся
+bin/roadmap lint  .okr/roadmap/<slug> [--date ГГГГ-ММ-ДД]          # --date — ещё и просроченные ответы
+bin/roadmap tree  .okr/roadmap/<slug>
+bin/roadmap build .okr/roadmap/<slug> [-o roadmap.html]
+bin/roadmap questions .okr/roadmap/<slug> [<id задачи>] [--open]
+bin/roadmap report .okr/roadmap/<slug> [<id вехи>|<трек>@<дата>|goal@<дата>|all] [--today ГГГГ-ММ-ДД] [--json]
+bin/roadmap xlsx   .okr/roadmap/<slug> -o <out.xlsx>   [--track N] [--goals 1,2,3,4] [--date ГГГГ-ММ-ДД]
+bin/roadmap letter .okr/roadmap/<slug> -o <letter.txt> [--track N] [--goals …] [--date …] [--xlsx <имя вложения>]
+bin/roadmap daily  .okr/roadmap/<slug> --date ГГГГ-ММ-ДД [--since ГГГГ-ММ-ДД] [-o reports/daily/ГГГГ-ММ-ДД.md]
+bin/roadmap journal add <папка стрима> --object <id|Q-NN> --type прогресс|комментарий --date … [--progress N] [--status …] [--text …] [--author …]
+bin/roadmap question answer <папка стрима> <Q-NN> --answer … --source … --date … [--status Готово] [--replace]
 ```
 
 Запускай из корня воркспейса: путь к папке попадает в промпт, который страница
@@ -58,8 +74,8 @@ python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py daily  .okr/roa
 раздел «Сборная карта цели из нескольких папок»; пример — `scripts/fixtures/goal/`).
 
 ```bash
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py lint  .okr/roadmap/<slug цели>    # проверяет каждую папку стрима
-python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py build .okr/roadmap/<slug цели> -o roadmap.html
+bin/roadmap lint  .okr/roadmap/<slug цели>    # проверяет каждую папку стрима
+bin/roadmap build .okr/roadmap/<slug цели> -o roadmap.html
 ```
 
 - Правишь задачи и вопросы — в папке стрима, как обычно; пересобираешь — сборную папку (и одиночную страницу стрима,
@@ -85,7 +101,9 @@ python3 <корень>/skills/okr-roadmap-viz/scripts/roadmap.py build .okr/road
 `backlog/` этой папки или Q-NN её `questions.csv`. Для новых комментариев это основной способ; раздел «## Комментарии»
 в md задачи старый — читается как раньше, новых строк туда не пиши, существующие не переноси без просьбы PO.
 
-- Строки только **дописываешь в конец** файла (UTF-8 с BOM, CRLF), старые не правишь и не удаляешь. Комментарий PO —
+- Строки только **дописываешь в конец** файла (UTF-8 с BOM, CRLF), старые не правишь и не удаляешь — командой
+  `bin/roadmap journal add` (проверит объект и формат, повтор не допишет); ответ на вопрос — `bin/roadmap question
+  answer`. Комментарий PO —
   его словами, Автор пусто (PO) или кто сказал; дату не выдумывай — с созвона или из промпта.
 - Прогресс задачи — строка «прогресс» (0…100 и статус). Последняя по дате запись задаёт прогресс и статус на странице;
   frontmatter `progress`/`status` обнови тем же значением, иначе `lint` предупредит о расхождении.
