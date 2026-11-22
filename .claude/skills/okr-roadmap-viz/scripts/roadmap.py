@@ -594,6 +594,8 @@ def load(folder):
     rm = parse_passport(pp, rep)
     if any(tr['dir'] for tr in rm['tracks']):
         load_goal(folder, rm, rep)
+        if not rep.errors:
+            rollup(rm)
         return rm, rep
     tasks, bdir = [], os.path.join(folder, 'backlog')
     if os.path.isdir(bdir):
@@ -618,6 +620,8 @@ def load(folder):
     check(rm, rep)
     for e in rm['journal']:
         e['src'] = folder.replace(os.sep, '/')
+    if not rep.errors:
+        rollup(rm)
     return rm, rep
 
 
@@ -1098,6 +1102,90 @@ def kids_sorted(lst):
     return sorted(lst, key=lambda t: (t['ordinal'] is None, t['ordinal'] or 0, natural(t['id'])))
 
 
+# ---------------------------------------------------------------- прогресс задачи: свой или расчёт по подзадачам
+
+ALL_DATES = '9999-12-31'   # «на любую дату»: страница и .xlsx берут весь журнал
+
+
+def half_up(total, n):
+    """Среднее с округлением половины вверх (целочисленно — одинаково везде)."""
+    return (2 * total + n) // (2 * n)
+
+
+def countable(t):
+    """Работа, которая входит в прогресс родителя: не блокер и не ВОПРОС/БЛОКАТОР/ЖДЕМ/ВЛИЯЕТ/РИСК."""
+    return t['type'] != 'bl' and not UNNUMBERED.match(t['title'])
+
+
+CALC = xlsx_pack.CALC   # «расчёт по подзадачам: N» — пометка на странице, в .xlsx и дейлике
+
+
+class Progress:
+    """Одно правило прогресса для дейлика, страницы и пакета .xlsx (format.md, «Прогресс задачи на дату»):
+    «Выполнено» — 100; иначе свой прогресс (последняя запись «прогресс» журнала не позже даты, без записей — progress
+    из md); своего нет — среднее по подзадачам, которые входят в прогресс, с округлением половины вверх; подзадач нет — 0.
+    Дата X — строка ГГГГ-ММ-ДД; по умолчанию весь журнал (страница и .xlsx)."""
+
+    def __init__(self, rm):
+        self.kids = {}
+        for t in rm['tasks']:
+            self.kids.setdefault(t['parent'], []).append(t)
+        self.pj = {}                              # записи «прогресс» задачи по порядку журнала
+        for e in rm.get('journal') or []:
+            if e.get('kind') == 'task' and e['ty'] == 'прогресс':
+                self.pj.setdefault(e['obj'], []).append(e)
+        self.memo = {}
+
+    def children(self, tid):
+        return [t for t in kids_sorted(self.kids.get(tid, [])) if countable(t)]
+
+    def own_at(self, t, X=ALL_DATES):
+        """Свой прогресс и статус задачи на дату X: последняя запись «прогресс» журнала не позже X; записей нет —
+        progress и status из md. Записи есть только после X — что было до журнала, неизвестно (None)."""
+        raw = t.get('raw') or {}
+        st0 = (raw.get('status') or 'Открыт').strip()
+        st0 = STATUS_ALIAS.get(st0.lower(), st0 if st0 in STATUSES else 'Открыт')
+        p0 = str(raw.get('progress') or '').strip().rstrip('%')
+        p0 = int(p0) if p0.isdigit() and int(p0) <= 100 else None
+        prog = self.pj.get(t['id'], [])
+        before = [e for e in prog if e['d'][:10] <= X]
+        stated = any(e['st'] for e in prog)
+        if before:
+            st = next((e['st'] for e in reversed(before) if e['st']), None if stated else st0)
+            return before[-1]['p'], st, 'журнал ' + '.'.join(reversed(before[-1]['d'][:10].split('-')))
+        if prog:
+            return None, None if stated else st0, ''
+        return p0, st0, 'md' if p0 is not None else ''
+
+    def status(self, t, X=ALL_DATES):
+        return self.own_at(t, X)[1]
+
+    def pct(self, t, X=ALL_DATES):
+        """(процент, откуда): «выполнено», «журнал ДД.ММ.ГГГГ», «md», «расчёт по подзадачам: N» или «нет записей»."""
+        key = (t['id'], X)
+        if key in self.memo:
+            return self.memo[key]
+        p, st, src = self.own_at(t, X)
+        kids = self.children(t['id'])
+        if st == 'Выполнено':
+            res = (100, 'выполнено')
+        elif p is not None:
+            res = (p, src)
+        elif kids:
+            res = (half_up(sum(self.pct(k, X)[0] for k in kids), len(kids)), f'{CALC}: {len(kids)}')
+        else:
+            res = (0, 'нет записей')
+        self.memo[key] = res
+        return res
+
+
+def rollup(rm):
+    """Прогресс каждой задачи по всему журналу — для страницы и .xlsx: t['roll'] = (процент, откуда)."""
+    P = Progress(rm)
+    for t in rm['tasks']:
+        t['roll'] = P.pct(t)
+
+
 def order_and_number(rm, rep):
     by, own = rm['by'], rm['own'] or {}
     nb = own.get('num', '')
@@ -1317,6 +1405,9 @@ def payload(rm, folder):
         })
         if multi:
             items[-1]['rid'] = t['rid']
+        roll = t.get('roll')
+        if roll and roll[1].startswith(CALC):   # своего прогресса нет — среднее по подзадачам (правило Progress)
+            items[-1]['pc'], items[-1]['pcs'] = roll
         state[tid] = {
             's': t['start'].isoformat() if t['start'] else '', 'e': t['end'].isoformat() if t['end'] else '',
             'r': t['role'], 'st': t['status'], 'p': t['progress'], 'd': t['desc'],

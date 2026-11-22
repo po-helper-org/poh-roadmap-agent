@@ -32,11 +32,6 @@ def day(e):
     return e['d'][:10]
 
 
-def half_up(total, n):
-    """Среднее с округлением половины вверх (целочисленно — одинаково везде)."""
-    return (2 * total + n) // (2 * n)
-
-
 def workspace(folder):
     """Корень воркспейса: папка над .okr/ (карта лежит в <корень>/.okr/roadmap/<slug>); иначе — сама папка карты."""
     parts = os.path.abspath(folder).split(os.sep)
@@ -77,14 +72,8 @@ class Daily:
         self.D, self.S = date.isoformat(), since.isoformat()
         self.multi = R.is_goal(rm)
         self.by = rm['by']
-        self.kids = {}
-        for t in rm['tasks']:
-            self.kids.setdefault(t['parent'], []).append(t)
-        self.pj = {}                              # записи «прогресс» задачи по порядку журнала
-        for e in rm['journal']:
-            if e['kind'] == 'task' and e['ty'] == 'прогресс':
-                self.pj.setdefault(e['obj'], []).append(e)
-        self.memo = {}
+        self.prog = R.Progress(rm)                # правило прогресса — общее со страницей и .xlsx (roadmap.Progress)
+        self.kids, self.pj = self.prog.kids, self.prog.pj
         self.qs = [q for q in rm['questions'] if self.q_exists(q)]   # реестр на дату отчёта
         self.goal_of, self.num, self.goals = {}, {}, []
         for tr in R.own_tracks(rm):
@@ -92,11 +81,10 @@ class Daily:
 
     # ------------------------------------------------------------ дерево
     def countable(self, t):
-        """Работа, которая входит в прогресс: не блокер и не ВОПРОС/БЛОКАТОР/ЖДЕМ/ВЛИЯЕТ/РИСК."""
-        return t['type'] != 'bl' and not R.UNNUMBERED.match(t['title'])
+        return R.countable(t)
 
     def children(self, tid):
-        return [t for t in R.kids_sorted(self.kids.get(tid, [])) if self.countable(t)]
+        return self.prog.children(tid)
 
     def track_goals(self, tr):
         """ЦС трека — задачи верхнего уровня в порядке страницы (этап раскрывается в свои задачи)."""
@@ -179,45 +167,13 @@ class Daily:
         txt = ru(s) if not e or e == s else f'{ru(s)}–{ru(e)}'
         return txt + ('' if xlsx_pack.team_dated(t) else ' (оценки нет)')
 
-    # ------------------------------------------------------------ прогресс на дату
-    def own_at(self, t, X):
-        """Свой прогресс и статус задачи на дату X (ГГГГ-ММ-ДД): последняя запись «прогресс» журнала не позже X; записей
-        нет — progress и status из md. Записи есть только после X — что было до журнала, неизвестно (None)."""
-        raw = t.get('raw') or {}
-        st0 = (raw.get('status') or 'Открыт').strip()
-        st0 = R.STATUS_ALIAS.get(st0.lower(), st0 if st0 in R.STATUSES else 'Открыт')
-        p0 = str(raw.get('progress') or '').strip().rstrip('%')
-        p0 = int(p0) if p0.isdigit() and int(p0) <= 100 else None
-        prog = self.pj.get(t['id'], [])
-        before = [e for e in prog if day(e) <= X]
-        stated = any(e['st'] for e in prog)
-        if before:
-            st = next((e['st'] for e in reversed(before) if e['st']), None if stated else st0)
-            return before[-1]['p'], st, 'журнал ' + ru(day(before[-1]))
-        if prog:
-            return None, None if stated else st0, ''
-        return p0, st0, 'md' if p0 is not None else ''
-
+    # ------------------------------------------------------------ прогресс на дату (roadmap.Progress)
     def status(self, t, X):
-        return self.own_at(t, X)[1]
+        return self.prog.status(t, X)
 
     def pct(self, t, X):
         """(процент, откуда): «Выполнено» = 100; свой прогресс (журнал или md); иначе среднее по подзадачам; иначе 0."""
-        key = (t['id'], X)
-        if key in self.memo:
-            return self.memo[key]
-        p, st, src = self.own_at(t, X)
-        kids = self.children(t['id'])
-        if st == 'Выполнено':
-            res = (100, 'выполнено')
-        elif p is not None:
-            res = (p, src)
-        elif kids:
-            res = (half_up(sum(self.pct(k, X)[0] for k in kids), len(kids)), f'расчёт по подзадачам: {len(kids)}')
-        else:
-            res = (0, 'нет записей')
-        self.memo[key] = res
-        return res
+        return self.prog.pct(t, X)
 
     def moved(self, t):
         """«за период 0% → 60%» или ''."""

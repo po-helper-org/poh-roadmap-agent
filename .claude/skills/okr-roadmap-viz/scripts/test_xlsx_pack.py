@@ -187,7 +187,7 @@ class Pack(unittest.TestCase):
         self.assertEqual(names, ['Roadmap', 'ГАНТТ', 'Реестр вопросов', 'Беклог задач'])
         g = roots['ГАНТТ']
         self.assertEqual(g.find('m:sheetPr/m:outlinePr', NS).get('summaryBelow'), '0')
-        self.assertEqual(g.find('m:sheetViews/m:sheetView/m:pane', NS).get('topLeftCell'), 'J4')
+        self.assertEqual(g.find('m:sheetViews/m:sheetView/m:pane', NS).get('topLeftCell'), 'K4')
         self.assertEqual(roots['Roadmap'].find('m:sheetViews/m:sheetView/m:pane', NS).get('topLeftCell'), 'D4')
         self.assertEqual(roots['Реестр вопросов'].find('m:sheetViews/m:sheetView/m:pane', NS).get('topLeftCell'), 'A2')
         for root in roots.values():   # печать: альбомная A3 по ширине страницы
@@ -235,6 +235,26 @@ class Pack(unittest.TestCase):
         self.assertEqual(back['1.1']['J'], '09.11.2026–04.12.2026')
         self.assertIsNone(back['1.2'].get('J'))
         self.assertEqual(back['1.2.2']['J'], '28.12.2026–15.01.2027')
+
+    def test_progress_column_rollup_from_subtasks(self):
+        data, _ = self.pack(goals=['1', '2'])
+        _, cells, _ = sheets(data)
+        self.assertEqual(cells['ГАНТТ']['J1'], 'Прогресс')
+        g = self.gantt_rows(cells['ГАНТТ'])
+        self.assertEqual(g['1.2.2']['J'], '100%')                     # выполнено
+        self.assertEqual(g['1.2.1']['J'], '0%')                       # нет записей
+        self.assertEqual(g['1.2']['J'], '50%')                        # расчёт: (0 + 100) / 2
+        self.assertEqual(g['1']['J'], '25%')                          # расчёт: (0 + 50) / 2 — то же правило, что в дейлике
+        self.assertIsNone(g['1.2.1.1'].get('J'))                      # пункт DoD — без прогресса
+        z = zipfile.ZipFile(io.BytesIO(data))
+        com = z.read('xl/comments2.xml').decode()
+        self.assertIn('Расчёт по подзадачам: 2 — своего прогресса нет', com)
+        # свой прогресс (журнал) важнее расчёта
+        with open(os.path.join(self.dir, 'journal.csv'), 'w', encoding='utf-8-sig', newline='') as f:
+            f.write('Дата;Объект;Тип;Прогресс;Статус;Текст;Автор\r\n2026-11-10;e2;прогресс;30;В работе;;\r\n')
+        _, cells, _ = sheets(self.pack(goals=['1', '2'])[0])
+        g = self.gantt_rows(cells['ГАНТТ'])
+        self.assertEqual((g['1.2']['J'], g['1']['J']), ('30%', '15%'))
 
     def gantt_rows_back(self, cells):
         rows = {}

@@ -210,6 +210,22 @@ class Build(Case):
         self.assertIn('id="cbar"', html)          # панель комментариев
         self.assertNotIn('fonts.googleapis', html)  # без внешних запросов
 
+    def test_progress_rollup_on_page(self):
+        def items():
+            html = self.build(os.path.join(self.tmp, 'a.html'))
+            data = json.loads(re.search(r'<script type="application/json" id="data">(.*?)</script>', html, re.S).group(1))
+            return {i['id']: i for i in data['items']}
+        it = items()
+        self.assertEqual((it['task-6']['pc'], it['task-6']['pcs']), (0, 'расчёт по подзадачам: 2'))  # своего нет
+        self.assertNotIn('pc', it['task-2'])        # свой прогресс из журнала (ВОПРОС-подзадача не считается)
+        self.assertNotIn('pc', it['task-7'])        # лист без записей — 0%, не расчёт
+        with open(os.path.join(self.dir, 'journal.csv'), 'a', encoding='utf-8', newline='') as f:
+            f.write('2026-11-11;task-7;прогресс;45;В работе;;BE\r\n')
+        self.assertEqual(items()['task-6']['pc'], 23)   # (45 + 0) / 2 — половина вверх, как в дейлике
+        rm, _ = roadmap.load(self.dir)
+        self.assertEqual(rm['by']['task-6']['roll'], (23, 'расчёт по подзадачам: 2'))
+        self.assertEqual(rm['by']['task-1']['roll'], (100, 'выполнено'))
+
     def test_sources_embedded_for_archive(self):
         html = self.build(os.path.join(self.tmp, 'a.html'))
         src = json.loads(re.search(r'<script type="application/json" id="src">(.*?)</script>', html, re.S).group(1))

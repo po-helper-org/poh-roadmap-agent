@@ -375,6 +375,7 @@ CODE = r'(?:(?:WBS|план(?:а)?(?: трека)?|задача плана|ве�
 DROP = [CODE, r'задача(?: плана)?\s+\d+(?:\.\d+)+\s+закрыта', r'созвон\b.*', r'«[^»]+»\s*\d{6,}',
         r'c\d-\d{3}(?:\s*[–-]\s*c\d-\d{3})?', r'\d{1,2}\.\d{1,2}\.\d{4}']
 TEAM_DATED = ('подтверждена', 'оценено командой', 'да')
+CALC = 'расчёт по подзадачам'   # пометка прогресса без своего значения (roadmap.Progress)
 
 
 def natural(s):
@@ -715,7 +716,7 @@ def pack(rm, track=None, goals=None, today=None):
     # ===== 2. ГАНТТ =====
     gsh = Sheet('ГАНТТ')
     gcols = [('Уровень', 10), ('№', 9), ('Название', 58), ('Роль', 8), ('Кто делает', 24), ('Принимает', 22), ('Старт', 11),
-             ('Финиш', 11), ('Статус', 12)]
+             ('Финиш', 11), ('Статус', 12), ('Прогресс', 10)]
     GC = len(gcols) + 1
     for i, (name, width) in enumerate(gcols, 1):
         gsh.merge(1, i, 3, i)
@@ -731,13 +732,17 @@ def pack(rm, track=None, goals=None, today=None):
     gr = [4]
     n_tasks = [0]
 
-    def gantt_row(lvl, num, name, role, who, appr, s, e, st):
+    def gantt_row(lvl, num, name, role, who, appr, s, e, st, roll=None):
         r0 = gr[0]
-        vals = [lvl, num, name, role, who or 'не назначен', appr or '—', s, e, st]
+        vals = [lvl, num, name, role, who or 'не назначен', appr or '—', s, e, st, f'{roll[0]}%' if roll else '']
         for i, val in enumerate(vals, 1):
             style(gsh.cell(r0, i, val), bold=lvl == 'Цель', fill=LVFILL.get(lvl), date=i in (7, 8))
         if not who:
             gsh.cell(r0, 5).fill = WARN
+        if roll and roll[1].startswith(CALC):   # своего прогресса нет — среднее по подзадачам (roadmap.Progress)
+            c = gsh.cell(r0, 10)
+            c.font = font(italic=True, bold=lvl == 'Цель')
+            c.comment = f'{roll[1][:1].upper()}{roll[1][1:]} — своего прогресса нет, среднее по подзадачам'
         fill = rolec.get(role, '808080')
         for k, wk in enumerate(weeks):
             cell = gsh.cell(r0, GC + k)
@@ -755,7 +760,8 @@ def pack(rm, track=None, goals=None, today=None):
     for t, lvl, n in rows:
         s, e = span(t) if team_dated(t) else (None, None)
         _, name = split_title(t['title'])
-        gantt_row(lvl, n, clean(name), t.get('role') or '', t.get('assignee'), t.get('approver'), s, e, t.get('status') or '')
+        gantt_row(lvl, n, clean(name), t.get('role') or '', t.get('assignee'), t.get('approver'), s, e, t.get('status') or '',
+                  t.get('roll'))
         if lvl == 'История' or (lvl == 'Эпик' and not kids.get(t['id'])):
             for k, item in enumerate(section(t.get('desc'), 'Definition of Done'), 1):
                 gantt_row('Задача', f'{n}.{k}' if n else '', clean(item), t.get('role') or '', t.get('assignee'),
@@ -764,7 +770,7 @@ def pack(rm, track=None, goals=None, today=None):
     gsh.autofilter = f'A3:{col_letter(len(gcols))}{gr[0] - 1}'
     gsh.cell(gr[0] + 1, 1, 'Уровни: Цель — целевое состояние, Эпик — шаг, История — подзадача, Задача — пункт DoD истории '
                            '(у эпика без историй — его DoD). Задачи наследуют сроки и исполнителя истории. Цвет полосы — роль. '
-                           'Даты стоят только там, где их оценила команда.').font = font(italic=True)
+                           'Даты стоят только там, где их оценила команда. Прогресс курсивом — расчёт по подзадачам (своего нет).').font = font(italic=True)
 
     # ===== 3. Реестр вопросов =====
     v = Sheet('Реестр вопросов')
@@ -856,7 +862,7 @@ def letter(s, xname):
 
 2. Как читать вложение
 • «Roadmap» — цели стрима по неделям: полоса цели (предварительное окно), ★ — её окончание, ◆ — окончание эпиков (подробности в примечании ячейки).
-• «ГАНТТ» — Цель → Эпик → История → Задача: исполнитель, принимающий, роль, сроки, статус; строки сворачиваются до целей.
+• «ГАНТТ» — Цель → Эпик → История → Задача: исполнитель, принимающий, роль, сроки, статус, прогресс (курсивом — расчёт по подзадачам); строки сворачиваются до целей.
 • «Реестр вопросов» — {s['open_q']} открытых вопросов: ожидаемый ответ, ответственный, срок, на что влияет.
 • «Беклог задач» — по каждому эпику и истории: ключевые требования, как принимаем, сроки, открытые вопросы.
 

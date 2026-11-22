@@ -154,8 +154,8 @@
   function eff(it) {
     var s = state[it.id] || {}, st = s.st || it.status || 'Открыт';
     var ty = s.ty ? (s.ty === 't' ? '' : s.ty) : (it.ty || ''), sd = s.s || it.s0 || '';
-    return { st: st, role: s.r || it.role, ty: ty, sn: s.sn || '', s: sd, e: (ty === 'ms' || ty === 'bl') ? '' : (s.e || ''), p: s.p != null ? s.p : (st === 'Выполнено' ? 100 : (parseInt(it.pct, 10) || 0)),
-      d: s.d || '', cu: s.cu || '', as: s.as || '', ap: s.ap || '', dep: (s.dep || []).filter(function (r) { return r.indexOf('S:') === 0 || ITEM[r]; }) };
+    return { st: st, role: s.r || it.role, ty: ty, sn: s.sn || '', s: sd, e: (ty === 'ms' || ty === 'bl') ? '' : (s.e || ''), p: s.p != null ? s.p : (st === 'Выполнено' ? 100 : it.pct ? (parseInt(it.pct, 10) || 0) : (it.pc != null ? it.pc : 0)),
+      pc: s.p == null && st !== 'Выполнено' && !it.pct && it.pc != null ? it.pcs : '', d: s.d || '', cu: s.cu || '', as: s.as || '', ap: s.ap || '', dep: (s.dep || []).filter(function (r) { return r.indexOf('S:') === 0 || ITEM[r]; }) };
   }
   function span(it) { var e = eff(it); if (!e.s) return null; var a = wk(e.s), b = e.e ? Math.max(a, wk(e.e)) : a; return [a, b]; }
   function cur(it) { var n = Object.assign(blank(), state[it.id] || {}); n.dep = (n.dep || []).slice(); return n; }
@@ -459,7 +459,8 @@
   // ---------- left column as a table: number · title · role · start · finish · status ----------
   // вместо статуса: процент исполнения и вопросы реестра «всего/отвечено»
   function pctOf(it) { var e = eff(it); return e.st === 'Выполнено' ? 100 : (e.ty === 'ms' || e.ty === 'bl' ? 0 : (e.p || 0)); }
-  function cellPct(p, st) { var c = el('span', 'cpc ' + SCLS[st], p + '%'); c.title = st + ' · выполнено ' + p + '%'; return c; }
+  function cellPct(p, st, pc) { var c = el('span', 'cpc ' + SCLS[st], p + '%'); c.title = st + ' · выполнено ' + p + '%' + (pc ? '\n' + CALCNOTE(pc) : ''); if (pc) c.classList.add('calc'); return c; }
+  function CALCNOTE(pc) { return 'Своего прогресса нет: ' + pc + ' (среднее, на момент сборки)'; }
   function cellQ(qs) {
     // всего (серым) / критичных открытых (красным) / отвечено (зелёным)
     var a = qs.filter(function (q) { return q.a; }).length, k = qs.filter(function (q) { return q.cr && !q.a; }).length, c = el('span', 'cq' + (qs.length ? '' : ' none'));
@@ -503,7 +504,7 @@
     g.appendChild(n); g.appendChild(t); g.appendChild(r);
     var when = msT ? (e.s ? (blT ? 'Снимется ' : 'Дата ') + fmt(e.s) : 'Без даты') : (e.s ? fmt(e.s) + ' – ' + (en ? fmt(en) : '…') : 'Без сроков');
     g.appendChild(cellWho((e.as || '').split(/\s*,\s*/).filter(Boolean), e.as ? 'Отвечает: ' + e.as : '', overdue(en, e.st), bad, (e.ap ? 'Принимает: ' + e.ap + '\n' : '') + when + (overdue(en, e.st) ? ' · просрочено' : '') + (bad ? '\nКонфликт: старт раньше финиша предшественника' : '')));
-    g.appendChild(cellPct(pctOf(it), e.st)); g.appendChild(cellQ(qsOf(it)));
+    g.appendChild(cellPct(pctOf(it), e.st, e.ty === 'ms' || e.ty === 'bl' ? '' : e.pc)); g.appendChild(cellQ(qsOf(it)));
     if (bad) g.title = 'Конфликт срока: старт раньше финиша предшественника';
     return g;
   }
@@ -627,7 +628,7 @@
   }
   function taskBar(it, e, sp) {
     var unc = it.es === 'не подтверждена', bar = el('div', 'bar ' + SCLS[e.st] + (unc ? ' unc' : '') + (sel === it.id ? ' on' : '')), a0 = sp[0], b0 = sp[1];
-    bar.style.left = (a0 - lo) * WPX + 2 + 'px'; bar.style.width = (b0 - a0 + 1) * WPX - 4 + 'px'; bar.title = it.title + '\n' + e.st + (e.p ? ' · ' + e.p + '%' : '') + (unc ? '\nОценка не подтверждена технической командой' : '');
+    bar.style.left = (a0 - lo) * WPX + 2 + 'px'; bar.style.width = (b0 - a0 + 1) * WPX - 4 + 'px'; bar.title = it.title + '\n' + e.st + (e.p ? ' · ' + e.p + '%' : '') + (e.pc ? '\n' + CALCNOTE(e.pc) : '') + (unc ? '\nОценка не подтверждена технической командой' : '');
     var f = el('div', 'fill'); f.style.width = e.p + '%'; bar.appendChild(f);
     if (unc) { var bw = (b0 - a0 + 1) * WPX - 4, ut = bw >= 290 ? 'Оценка не подтверждена технической командой' : bw >= 170 ? 'Оценка не подтверждена' : ''; if (ut) bar.appendChild(el('span', 'ul', ut)); }
     if (e.p) bar.appendChild(el('span', 'pl', e.p + '%'));
@@ -1248,7 +1249,7 @@
     renderNote(); renderChips(); renderMention();
     metaEl.textContent = '';
     function kv(k, v) { if (v) { metaEl.appendChild(el('dt', '', k)); metaEl.appendChild(el('dd', '', v)); } }
-    kv('Этап', stageTitle(it.stage)); kv('К задаче', it.parent); if (one) kv(blT ? 'Снимется' : 'Дата', e.s ? fmt(e.s) : '');
+    kv('Этап', stageTitle(it.stage)); kv('К задаче', it.parent); if (e.pc && !one) kv('Прогресс', e.p + '% — ' + e.pc + ': своего прогресса нет, среднее на момент сборки'); if (one) kv(blT ? 'Снимется' : 'Дата', e.s ? fmt(e.s) : '');
     if (it.stat) kv('Источник', 'roadmap, ' + (it.track ? 'трек ' + it.track : 'все треки'));
     else if (it.custom) kv('Источник', 'Добавлено вручную'); else if (it.file) kv('Файл', it.file); else { kv('Источник', 'GanttPRO, ID ' + it.gid); kv('В выгрузке', it.status + (it.pct ? ', ' + it.pct : '')); }
     delBtn.style.display = it.custom ? '' : 'none';
