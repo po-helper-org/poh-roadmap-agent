@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Roadmap: md-файлы → проверка и граф зависимостей → html.
 
-  roadmap.py init  <папка> [--title "Название"]  создать заготовку roadmap (паспорт, backlog/, questions.csv, journal.csv)
+  roadmap.py init  <папка> [--title "Название"] [--track "Трек"]
+                                    заготовка карты по конституции (паспорт, backlog/ts1, questions.csv, journal.csv);
+                                    init --help — что создаётся
   roadmap.py lint  <папка>          проверить md, записать <папка>/roadmap.json
   roadmap.py tree  <папка>          дерево с номерами, файлами и зависимостями
   roadmap.py build <папка> [-o файл] проверить и собрать <папка>/roadmap.html
@@ -1857,7 +1859,10 @@ title: {title}
 start: {start}
 ---
 
-Паспорт roadmap. Задачи своего трека — в backlog/, по файлу на задачу. Вопросы и ключевые решения — в questions.csv.
+Паспорт карты целевых состояний. Оформление — конституция (.claude/skills/okr-roadmap-viz/resources/constitution.md),
+эталон — examples/school-migration/.okr/roadmap/courses/. ЦС — файлы backlog/ts<N>, шаги — s<N><k>, подзадачи —
+w<код WBS> или s<N><k>-<n>; номера пишутся в title, поэтому у трека нет строки «- нумерация:». Вопросы — questions.csv,
+журнал прогресса и комментариев — journal.csv (только дописывается).
 
 ## Роли
 
@@ -1871,29 +1876,37 @@ start: {start}
 ## Трек 1. {track}
 
 - свой: да
-- нумерация: 1
 
 ### Результат
 
-Что будет достигнуто по треку — одним абзацем.
-
-### Целевые состояния
-
-- {target} | Первое целевое состояние | Полная формулировка целевого состояния
+Что будет достигнуто по треку — одним абзацем словами PO.
 '''
 
 INIT_TASK = '''---
-id: t1
-title: "Первая задача"
+id: ts1
+title: "1. Формулировка целевого состояния словами PO"
 status: Открыт
 role: PO
-type: task
-start: {start}
-end: {end}
+type: milestone
+ordinal: 1
+short: "1 · Краткая суть без новых слов"
+date: {date}
 ---
 
-Что делаем и как поймём, что готово.
+Дата — заготовка init: замените датой вехи плана («Дата — веха <№> плана «<название>».») или формой статьи I.6
+конституции. Шаги — этап 2 методологии (templates/backlog/step.md), тогда ЦС — type: task с окном по шагам.
 '''
+
+INIT_HELP = '''bin/roadmap init <папка> [--title "Название цели"] [--track "Название своего трека"]
+
+Создаёт заготовку карты по конституции (эталон — examples/school-migration/.okr/roadmap/courses/):
+  roadmap.md                        паспорт: роли, свой трек без «- нумерация:» (номера — в title задач)
+  backlog/ts1 - Первое целевое состояние.md   ЦС 1 — веха с датой-заготовкой (role: PO, ordinal: 1, short)
+  questions.csv                     заголовок реестра (колонки конституции, UTF-8 с BOM, «;», CRLF)
+  journal.csv                       заголовок журнала (UTF-8 с BOM, «;», CRLF)
+Папку с roadmap.md не трогает. Дальше: bin/roadmap lint <папка>, bin/roadmap build <папка>.'''
+
+INIT_QCOLS = ['ID', 'Этап', 'Вопрос', 'Ответ', 'Ответственные', 'Влияет на', 'Критичный', 'Комментарий', 'Статус', 'История']
 
 
 def cmd_init(folder, title='Roadmap', track='Мой трек'):
@@ -1901,18 +1914,45 @@ def cmd_init(folder, title='Roadmap', track='Мой трек'):
         print(f'{folder}/roadmap.md уже есть — ничего не меняю')
         return 1
     os.makedirs(os.path.join(folder, 'backlog'), exist_ok=True)
-    today = dt.date.today()
-    start = monday(today)
-    write(os.path.join(folder, 'roadmap.md'), INIT_ROADMAP.format(
-        title=title, start=start.isoformat(), track=track, target=(start + dt.timedelta(days=4 + 7 * 8)).isoformat()))
-    write(os.path.join(folder, 'backlog', 't1 - Первая задача.md'), INIT_TASK.format(
-        start=start.isoformat(), end=(start + dt.timedelta(days=11)).isoformat()))
+    start = monday(dt.date.today())
+    write(os.path.join(folder, 'roadmap.md'), INIT_ROADMAP.format(title=title, start=start.isoformat(), track=track))
+    write(os.path.join(folder, 'backlog', 'ts1 - Первое целевое состояние.md'), INIT_TASK.format(
+        date=(start + dt.timedelta(days=4 + 7 * 8)).isoformat()))
     with open(os.path.join(folder, 'questions.csv'), 'w', encoding='utf-8-sig', newline='') as f:
-        f.write(';'.join(QCOLS.values()) + ';Критичный;Статус;История\n')
+        f.write(';'.join(INIT_QCOLS) + '\r\n')
     with open(os.path.join(folder, 'journal.csv'), 'w', encoding='utf-8-sig', newline='') as f:
         f.write(';'.join(JCOLS) + '\r\n')
-    print(f'Создано: {folder}/roadmap.md, backlog/, questions.csv, journal.csv. Дальше: roadmap.py build {folder}')
+    print(f'Создано: {folder}/roadmap.md, backlog/ts1, questions.csv, journal.csv. Дальше: bin/roadmap lint {folder}')
     return 0
+
+
+def init_args(argv):
+    '''init <папка> [--title …] [--track …]: (папка, title, трек) или код выхода (0 — помощь, 2 — ошибка).'''
+    rest, folder, opt, i = argv[2:], None, {}, 0
+    while i < len(rest):
+        a = rest[i]
+        if a in ('-h', '--help'):
+            print(INIT_HELP)
+            return 0
+        if a in ('--title', '--track'):
+            if i + 1 >= len(rest) or rest[i + 1].startswith('-'):
+                print(f'ОШИБКА  {a}: нужно значение\n\n{INIT_HELP}')
+                return 2
+            opt[a] = rest[i + 1]
+            i += 2
+            continue
+        if a.startswith('-'):
+            print(f'ОШИБКА  неизвестный параметр «{a}»\n\n{INIT_HELP}')
+            return 2
+        if folder is not None:
+            print(f'ОШИБКА  лишний аргумент «{a}»: папка одна («{folder}»)\n\n{INIT_HELP}')
+            return 2
+        folder = a
+        i += 1
+    if folder is None:
+        print(f'ОШИБКА  нет папки\n\n{INIT_HELP}')
+        return 2
+    return folder, opt.get('--title', 'Roadmap'), opt.get('--track', 'Мой трек')
 
 
 def pack_args(argv):
@@ -1959,14 +1999,19 @@ def cmd_pack(argv):
 
 
 def main(argv):
-    if len(argv) < 3 or argv[1] not in ('init', 'lint', 'tree', 'build', 'report', 'questions', 'xlsx', 'letter', 'daily'):
+    if len(argv) >= 2 and argv[1] in ('-h', '--help', 'help'):
+        print(__doc__.strip())
+        return 0
+    if len(argv) >= 2 and argv[1] == 'init':
+        a = init_args(argv)
+        return a if isinstance(a, int) else cmd_init(*a)
+    if len(argv) < 3 or argv[1] not in ('lint', 'tree', 'build', 'report', 'questions', 'xlsx', 'letter', 'daily'):
         print(__doc__.strip())
         return 2
+    if argv[2] in ('-h', '--help'):
+        print(__doc__.strip())
+        return 0
     folder = argv[2]
-    if argv[1] == 'init':
-        title = argv[argv.index('--title') + 1] if '--title' in argv else 'Roadmap'
-        track = argv[argv.index('--track') + 1] if '--track' in argv else 'Мой трек'
-        return cmd_init(folder, title, track)
     if argv[1] == 'lint':
         rm, _ = cmd_lint(folder)
         return 0 if rm else 1

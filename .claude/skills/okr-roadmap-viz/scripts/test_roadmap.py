@@ -813,6 +813,57 @@ class Init(unittest.TestCase):
             shutil.rmtree(tmp)
 
 
+    def test_init_help_and_unknown_options(self):
+        tmp = tempfile.mkdtemp()
+        cwd = os.getcwd()
+        try:
+            os.chdir(tmp)
+            for flag in ('--help', '-h'):
+                code, out = quiet(roadmap.main, ['roadmap.py', 'init', flag])
+                self.assertEqual(code, 0)
+                self.assertIn('bin/roadmap init <папка>', out)
+                code, _ = quiet(roadmap.main, ['roadmap.py', 'init', 'x', flag])
+                self.assertEqual(code, 0)
+            for argv in (['init', '--foo'], ['init', 'x', '--tittle', 'A'], ['init'], ['init', 'x', '--title'], ['init', 'x', 'y']):
+                code, out = quiet(roadmap.main, ['roadmap.py'] + argv)
+                self.assertEqual(code, 2, argv)
+                self.assertIn('ОШИБКА', out)
+            self.assertEqual(os.listdir(tmp), [])      # ни «--help», ни «x» не созданы
+            code, out = quiet(roadmap.main, ['roadmap.py', 'lint', '--help'])
+            self.assertEqual(code, 0)
+        finally:
+            os.chdir(cwd)
+            shutil.rmtree(tmp)
+
+    def test_init_matches_constitution(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            d = os.path.join(tmp, 'goal')
+            quiet(roadmap.main, ['roadmap.py', 'init', d, '--title', 'Цель X', '--track', 'Стрим'])
+            (_, rep), _ = quiet(roadmap.cmd_lint, d)
+            self.assertEqual((rep.errors, rep.warnings), ([], []))
+            with open(os.path.join(d, 'roadmap.md'), encoding='utf-8') as f:
+                passport = f.read()
+            self.assertIn('## Трек 1. Стрим\n\n- свой: да\n', passport)
+            self.assertNotRegex(passport, r'(?m)^- нумерация:')   # статья I.4: номер — в title
+            self.assertNotIn('### Целевые состояния', passport)  # ЦС — файлы backlog/ts<N>
+            self.assertEqual(os.listdir(os.path.join(d, 'backlog')), ['ts1 - Первое целевое состояние.md'])
+            rm, _ = roadmap.load(d)
+            t = rm['by']['ts1']
+            self.assertEqual((t['role'], t['type'], t['ordinal'], t['parent']), ('PO', 'ms', 1, ''))
+            self.assertTrue(t['title'].startswith('1. '))
+            self.assertTrue(t['short'].startswith('1 · '))
+            with open(os.path.join(d, 'questions.csv'), 'rb') as f:
+                head = f.read()
+            with open(os.path.join(HERE, '..', '..', '..', '..', 'templates', 'questions.csv'), 'rb') as f:
+                self.assertEqual(head, f.read())                # колонки конституции V.1, BOM, CRLF — как шаблон
+            ex = os.path.join(HERE, '..', '..', '..', '..', 'examples', 'school-migration', '.okr', 'roadmap', 'courses', 'questions.csv')
+            with open(ex, 'rb') as f:
+                self.assertEqual(head, f.read().split(b'\r\n')[0] + b'\r\n')   # и как в эталоне
+        finally:
+            shutil.rmtree(tmp)
+
+
 class Parsing(unittest.TestCase):
     def test_front_matter_lists(self):
         fm, body = roadmap.front_matter('---\nid: a\ndependencies:\n  - b\n  - "c"\nshort: \'it\'\'s\'\n---\ntext\n')
