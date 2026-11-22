@@ -8,11 +8,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Репозиторий обезличен
+        run: bin/check-anon
       - name: Тесты инструмента
         run: python3 -m unittest discover -s .claude/skills/okr-roadmap-viz/scripts -v
       - name: Пример проходит проверки
         run: |
-          bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01
+          bin/roadmap lint examples/school-migration/.okr/roadmap/goal-01 --date 2026-11-22
           bin/check-qlinks examples/school-migration/.okr/roadmap/goal-01
           bin/roadmap build examples/school-migration/.okr/roadmap/goal-01 -o /tmp/school.html
           bin/roadmap daily examples/school-migration/.okr/roadmap/goal-01 --date 2026-11-22 -o /tmp/daily.md --since 2026-11-19

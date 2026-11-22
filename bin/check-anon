@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Проверка обезличенности публичного репозитория: реальных имён, компаний, контактов и приватных ссылок в нём нет.
+
+Использование: bin/check-anon [--root <папка>] [--denylist <файл>]
+
+Проверяет файлы, которые отслеживает git, и новые, ещё не добавленные, кроме игнорируемых (`git ls-files --cached
+--others --exclude-standard`; не git — все файлы, кроме .git и рабочих копий), и их пути. Текст .xlsx и .docx проверяется внутри архива; другие двоичные файлы пропускаются.
+
+- Свой список — `.anon-denylist` в корне (в .gitignore, в репозиторий не попадает): по шаблону в строке, без учёта
+  регистра. Строка — подстрока; `re:<выражение>` — регулярное выражение; `allow:<префикс URL>` — разрешённая ссылка
+  (без схемы: `allow:example.org/docs`); `#` — комментарий. Пример — `.anon-denylist.example`.
+- Встроено: адреса почты (кроме example.com/.org/.net и noreply@), телефоны (+7/8 и международные с «+»), ссылки
+  http(s) на хосты вне списка публичных (github.com/po-helper-org/…, пространства имён XML и т. п.).
+
+Выводит «файл:строка: что — «найдено»»; код выхода 1, если есть находки, иначе 0. Только stdlib.
+"""
+import argparse
+import os
+import re
+import subprocess
+import sys
+import zipfile
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SKIP_DIRS = {'.git', 'worktrees', '__pycache__', 'node_modules'}
+
+EMAIL = re.compile(r'(?<![\w.+-])[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?![\w-])')
+EMAIL_OK = re.compile(r'^(noreply|no-reply)@|@(example\.(com|org|net)|users\.noreply\.github\.com)$', re.I)
+PHONE = re.compile(r'(?<![\w.+])(?:\+7|8)[\s(-]*\d{3}[\s)-]*\d{3}[\s-]*\d{2}[\s-]*\d{2}(?![\d.])'
+                   r'|(?<![\w.+])\+\d{1,3}[\s(-]*\d{2,4}[\s)-]*\d{3}[\s-]*\d{2,4}(?:[\s-]*\d{2})?(?![\d.])')
+URL = re.compile(r'https?://([^\s/)\]"\'<>`»\\]+)([^\s)\]"\'<>`»\\]*)', re.I)
+URL_OK = (                       # публичные ссылки: репозитории организации и стандартные пространства имён
+    'github.com/po-helper-org/', 'github.com/po-helper-org)', 'github.com/MrLesk/Backlog.md',
+    'schemas.openxmlformats.org/', 'schemas.microsoft.com/', 'www.w3.org/', 'purl.org/', 'scripts.sil.org/',
+    'claude.com/claude-code', 'claude.ai/code',
+)
+ZIPPED = ('.xlsx', '.docx', '.pptx')
+
+
+def tracked(root):
+    try:
+        out = subprocess.run(['git', '-C', root, 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+                             check=True, capture_output=True).stdout
+        return sorted(p for p in out.decode('utf-8').split('\0') if p)
+    except (OSError, subprocess.CalledProcessError):
+        files = []
+        for d, dirs, names in os.walk(root):
+            dirs[:] = sorted(x for x in dirs if x not in SKIP_DIRS)
+            files += [os.path.relpath(os.path.join(d, n), root).replace(os.sep, '/') for n in sorted(names)]
+        return files
+
+
+def load_denylist(path):
+    """[(метка, regex)], [разрешённые префиксы URL]."""
+    deny, allow = [], []
+    if not path or not os.path.isfile(path):
+        return deny, allow
+    with open(path, encoding='utf-8-sig') as f:
+        for n, line in enumerate(f, 1):
+            s = line.strip()
+            if not s or s.startswith('#'):
+                continue
+            if s.startswith('allow:'):
+                allow.append(re.sub(r'^https?://', '', s[6:].strip(), flags=re.I))
+            elif s.startswith('re:'):
+                try:
+                    deny.append((f'шаблон {n} списка', re.compile(s[3:].strip(), re.I)))
+                except re.error as e:
+                    raise SystemExit(f'{path}:{n}: неверное выражение: {e}')
+            else:
+                deny.append((f'шаблон {n} списка', re.compile(re.escape(s), re.I)))
+    return deny, allow
+
+
+def texts(root, rel):
+    """[(подпись, текст)] файла: обычный текст или части .xlsx/.docx; двоичное — пусто."""
+    path = os.path.join(root, rel)
+    if not os.path.isfile(path) or os.path.islink(path):
+        return []
+    if rel.lower().endswith(ZIPPED):
+        try:
+            with zipfile.ZipFile(path) as z:
+                return [(f'{rel}!{n}', z.read(n).decode('utf-8', 'replace'))
+                        for n in sorted(z.namelist()) if n.endswith(('.xml', '.vml', '.rels'))]
+        except zipfile.BadZipFile:
+            return []
+    with open(path, 'rb') as f:
+        raw = f.read()
+    if b'\0' in raw[:8192]:
+        return []
+    return [(rel, raw.decode('utf-8', 'replace'))]
+
+
+def url_ok(host, rest, allow):
+    u = host + rest
+    return any(u.lower().startswith(a.lower()) for a in URL_OK + tuple(allow))
+
+
+def scan_text(label, text, deny, allow):
+    hits = []
+    for n, line in enumerate(text.splitlines(), 1):
+        for m in EMAIL.finditer(line):
+            if not EMAIL_OK.search(m.group(0)):
+                hits.append((label, n, 'адрес почты', m.group(0)))
+        for m in PHONE.finditer(line):
+            hits.append((label, n, 'телефон', m.group(0).strip()))
+        for m in URL.finditer(line):
+            if not url_ok(m.group(1), m.group(2), allow):
+                hits.append((label, n, 'ссылка вне списка публичных', m.group(0)))
+        for name, rx in deny:
+            for m in rx.finditer(line):
+                hits.append((label, n, name, m.group(0)))
+    return hits
+
+
+def scan(root, denylist=None):
+    deny, allow = load_denylist(denylist if denylist is not None else os.path.join(root, '.anon-denylist'))
+    hits, files = [], tracked(root)
+    for rel in files:
+        for name, rx in deny:            # имя файла тоже может выдать
+            for m in rx.finditer(rel):
+                hits.append((rel, 0, name + ' (в пути)', m.group(0)))
+        for label, text in texts(root, rel):
+            hits += scan_text(label, text, deny, allow)
+    return hits, len(files), len(deny)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--root', default=REPO)
+    ap.add_argument('--denylist', default=None, help='по умолчанию <root>/.anon-denylist')
+    a = ap.parse_args(argv)
+    hits, n_files, n_deny = scan(a.root, a.denylist)
+    for label, n, what, found in hits:
+        print(f'{label}:{n}: {what} — «{found}»')
+    print(f'Проверено файлов {n_files}, своих шаблонов {n_deny}. Находок: {len(hits)}', file=sys.stderr)
+    return 1 if hits else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

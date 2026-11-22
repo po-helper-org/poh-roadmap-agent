@@ -145,6 +145,7 @@ bin/roadmap, check-qlinks, backup
 | `bin/roadmap question answer <папка стрима> Q-NN --answer … --source … --date …` | ответ в `questions.csv`: «Ответ», «Статус», строка «Истории» |
 | `bin/check-qlinks <папка>` | каждый `Q-NN` из текста задачи стоит в «Влияет на» задачи или предка |
 | `bin/backup <out.zip> [доп. папки]` | бэкап, который открывается на macOS |
+| `bin/check-anon` | нет ли в репозитории почты, телефонов, приватных ссылок и слов из своего `.anon-denylist` (пример — `.anon-denylist.example`); запускает и CI |
 
 ## Инструмент
 
