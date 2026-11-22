@@ -346,6 +346,15 @@ class Conditions(Case):
         code, _ = quiet(roadmap.main, ['roadmap.py', 'report', self.dir, '3@2027-02-05'])
         self.assertEqual(code, 1)
 
+    def test_report_without_conditions_says_so(self):
+        shutil.rmtree(os.path.join(self.dir, 'conditions'))
+        code, out = quiet(roadmap.main, ['roadmap.py', 'report', self.dir, '--today', '2026-11-20'])
+        self.assertEqual(code, 0)
+        self.assertIn('Условий нет', out)
+        code, out = quiet(roadmap.main, ['roadmap.py', 'report', self.dir, '--today', '2026-11-20', '--json'])
+        self.assertEqual(json.loads(out)['targets'], [])
+        self.assertIn('Условий нет', json.loads(out)['note'])
+
     def test_payload_and_graph(self):
         quiet(roadmap.main, ['roadmap.py', 'lint', self.dir])
         with open(os.path.join(self.dir, 'roadmap.json'), encoding='utf-8') as f:

@@ -1611,6 +1611,11 @@ def cmd_report(folder, which='all', today=None, as_json=False):
         print_report(rep)
         return 1
     today = today or dt.date.today()
+    if not rm['conds']:
+        note = (f'Условий нет: в карте {folder} нет файлов conditions/*.md (реестр условий необязателен; в стриме ЦС его не '
+                'заводят — конституция, «Старшинство»). Отчёт о рисках строится только по условиям.')
+        print(json_text({'today': today.isoformat(), 'targets': [], 'note': note}) if as_json else note)
+        return 0
     first = {}
     for c in rm['conds']:
         first.setdefault(ckey(c), c)
